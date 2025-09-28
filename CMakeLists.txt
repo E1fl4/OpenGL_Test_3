@@ -9,6 +9,7 @@ link_directories(lib)
 
 set(SOURCES
     src/main.cpp
+    src/Shader.cpp
     src/glad.c
 )
 
