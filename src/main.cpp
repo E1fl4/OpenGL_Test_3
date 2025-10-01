@@ -9,7 +9,7 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
-const unsigned int SCREEN_WIDTH = 800;
+const unsigned int SCREEN_WIDTH = 600;
 const unsigned int SCREEN_HEIGHT = 600;
 
 int main() {
@@ -40,12 +40,14 @@ int main() {
     Shader shader("../resources/shaders/shader.vert", "../resources/shaders/shader.frag");
     
     float vertices[] = {
-        0.0f,  0.5f, 0.0f,      0.5f, 1.0f,
-        0.5f,  -0.5f, 0.0f,     1.0f, 0.0f,
+        -0.5f,  0.5f, 0.0f,     0.0f, 1.0f,
+         0.5f,  0.5f, 0.0f,     1.0f, 1.0f,
+         0.5f, -0.5f, 0.0f,     1.0f, 0.0f,
         -0.5f, -0.5f, 0.0f,     0.0f, 0.0f
     };
     unsigned int indicies[] = {
-        0, 1, 2
+        0, 1, 3,
+        1, 2, 3
     };
 
     // TEXTURE
@@ -95,7 +97,7 @@ int main() {
         shader.use();
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         
         glfwSwapBuffers(window);
         glfwPollEvents();
