@@ -1,5 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include "Shader.h"
 #include <iostream>
 
@@ -60,7 +63,7 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     stbi_set_flip_vertically_on_load(true);
     int texWidth, texHeight, nrChannels;
-    unsigned char *textureData = stbi_load("../resources/textures/dirt.png", &texWidth, &texHeight, &nrChannels, 0);
+    unsigned char *textureData = stbi_load("../resources/textures/diamond_ore.png", &texWidth, &texHeight, &nrChannels, 0);
     if (textureData) {
         GLenum colorFormat = (nrChannels == 4) ? GL_RGBA : GL_RGB;
         glTexImage2D(GL_TEXTURE_2D, 0, colorFormat, texWidth, texHeight, 0, colorFormat, GL_UNSIGNED_BYTE, textureData);
@@ -91,10 +94,22 @@ int main() {
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         
         shader.use();
+
+        glm::mat4 model(1.0);
+        model = glm::rotate(model, (float)glfwGetTime()*2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, (float)glfwGetTime()*3.2f, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 view(1.0);
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -5.0f));
+        glm::mat4 projection(1.0);
+        projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+        shader.setMat4("model", glm::value_ptr(model));
+        shader.setMat4("view", glm::value_ptr(view));
+        shader.setMat4("projection", glm::value_ptr(projection));
+
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
