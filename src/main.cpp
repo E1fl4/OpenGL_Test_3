@@ -40,17 +40,52 @@ int main() {
         return -1;
     }
 
+    glEnable(GL_DEPTH_TEST);
+
     Shader shader("../resources/shaders/shader.vert", "../resources/shaders/shader.frag");
     
     float vertices[] = {
-        -0.5f,  0.5f, 0.0f,     0.0f, 1.0f,
-         0.5f,  0.5f, 0.0f,     1.0f, 1.0f,
-         0.5f, -0.5f, 0.0f,     1.0f, 0.0f,
-        -0.5f, -0.5f, 0.0f,     0.0f, 0.0f
-    };
-    unsigned int indicies[] = {
-        0, 1, 3,
-        1, 2, 3
+        -0.5f,  0.5f, 0.5f,     0.0f, 1.0f,
+         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,
+         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,
+         0.5f, -0.5f, 0.5f,     1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,
+
+        0.5f,  0.5f,  0.5f,     0.0f, 1.0f,
+        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,     1.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,
+
+        -0.5f, 0.5f, -0.5f,     0.0f, 1.0f,
+         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,
+        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,
+         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,
+         0.5f, 0.5f,  0.5f,     1.0f, 0.0f,
+        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,
+
+         0.5f,  0.5f, -0.5f,     0.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,     1.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
+
+        -0.5f,  0.5f, -0.5f,     0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,     1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,     0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,     1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f
     };
 
     // TEXTURE
@@ -74,18 +109,14 @@ int main() {
     stbi_image_free(textureData);
     //
 
-    unsigned int VAO, VBO, EBO;
+    unsigned int VAO, VBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
 
     glBindVertexArray(VAO);
     
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
     
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -95,13 +126,12 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
         glClearColor(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         shader.use();
 
         glm::mat4 model(1.0);
-        model = glm::rotate(model, (float)glfwGetTime()*2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, (float)glfwGetTime()*3.2f, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 view(1.0);
         view = glm::translate(view, glm::vec3(0.0f, 0.0f, -5.0f));
         glm::mat4 projection(1.0);
@@ -112,7 +142,7 @@ int main() {
 
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
         
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -121,7 +151,6 @@ int main() {
     glDeleteProgram(shader.ID);
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
     glDeleteTextures(1, &texture);
     glfwTerminate();
     return 0;
