@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Shader.h"
+#include "Camera.h"
 #include <iostream>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -12,6 +13,8 @@
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow *window);
+
+Camera camera;
 
 const unsigned int SCREEN_WIDTH = 1200;
 const unsigned int SCREEN_HEIGHT = 700;
@@ -23,14 +26,14 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-const glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+// const glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
 
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f,  3.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f,  0.0f);
+// glm::vec3 cameraPos(0.0f, 0.0f,  3.0f);
+// glm::vec3 cameraFront(0.0f, 0.0f, -1.0f);
+// glm::vec3 cameraUp = worldUp;
 
-float yaw = -90.0f;
-float pitch = 0.0f;
+// float yaw = -90.0f;
+// float pitch = 0.0f;
 
 int main() {
     if (!glfwInit()) {
@@ -124,7 +127,7 @@ int main() {
     unsigned int texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);   
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -166,14 +169,10 @@ int main() {
         
         shader.use();
 
-        glm::vec3 direction;
-        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        direction.y = sin(glm::radians(pitch));
-        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-        cameraFront = glm::normalize(direction);
-
         glm::mat4 view;
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        // view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        // shader.setMat4("view", glm::value_ptr(view));
+        view = camera.getViewMatrix();
         shader.setMat4("view", glm::value_ptr(view));
 
         glm::mat4 projection(1.0);
@@ -185,7 +184,7 @@ int main() {
         for (unsigned int i = 0; i < 10; i++) {
             glm::mat4 model(1.0);
             model = glm::translate(model, cubePositions[i]);
-            // model = glm::rotate(model, (float)glfwGetTime()*((float)(i+1)/2), glm::normalize(glm::vec3(1.0f, 2.0f, 0.0f)));
+            model = glm::rotate(model, i*20.0f, glm::normalize(glm::vec3(1.0f, 2.0f, 0.0f)));
             shader.setMat4("model", glm::value_ptr(model));
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
@@ -206,26 +205,19 @@ void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
     }
-    const float cameraSpeed = 2.5f * deltaTime;
-    const glm::vec3 cameraFrontHorizontal(cos(glm::radians(yaw)), 0.0f, sin(glm::radians(yaw)));
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        cameraPos += cameraSpeed * cameraFrontHorizontal;
-    }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        cameraPos -= cameraSpeed * cameraFrontHorizontal;
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        cameraPos += 1.5f * cameraSpeed * worldUp;
-    }
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        cameraPos -= 1.5f * cameraSpeed * worldUp;
-    }
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.processKeyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.processKeyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.processKeyboard(BACKWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.processKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        camera.processKeyboard(UP, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.processKeyboard(DOWN, deltaTime);
 }
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
@@ -244,17 +236,6 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     lastX = xpos;
     lastY = ypos;
 
-    const float sensitivity = 0.1f;
-    xOffset *= sensitivity;
-    yOffset *= sensitivity;
-
-    if(pitch > 89.0f) {
-        pitch = 89.0f;
-    }
-    if(pitch < -89.0f) {
-        pitch = -89.0f;
-    }
-
-    yaw += xOffset;
-    pitch += yOffset;
+    camera.processMouseMovement(xOffset, yOffset);
 }
+
