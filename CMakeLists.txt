@@ -34,6 +34,7 @@ if(APPLE)
         "-framework OpenGL"
     )
 elseif(UNIX)
+    cmake_policy(SET CMP0072 NEW)
     find_package(OpenGL REQUIRED)
     target_link_libraries(${PROJECT_NAME}
         glfw
