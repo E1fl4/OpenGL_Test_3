@@ -4,9 +4,6 @@ project(OpenGL_Test_3 C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(include)
-link_directories(lib)
-
 set(SOURCES
     src/main.cpp
     src/Shader.cpp
@@ -15,9 +12,33 @@ set(SOURCES
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-target_link_libraries(${PROJECT_NAME}
-    glfw3
-    "-framework Cocoa"
-    "-framework IOKit"
-    "-framework CoreVideo"
-)
+include_directories(include)
+
+if(APPLE)
+    set(HOMEBREW_PREFIX "/opt/homebrew")
+    if (EXISTS "/usr/local/lib/libglfw.dylib")
+        set(HOMEBREW_PREFIX "/usr/local")
+    endif()
+
+    message(STATUS "Using Homebrew prefix: ${HOMEBREW_PREFIX}")
+
+    include_directories(${HOMEBREW_PREFIX}/include)
+    link_directories(${HOMEBREW_PREFIX}/lib)
+
+    target_link_libraries(${PROJECT_NAME}
+        "-L${HOMEBREW_PREFIX}/lib"
+        glfw
+        "-framework Cocoa"
+        "-framework IOKit"
+        "-framework CoreVideo"
+        "-framework OpenGL"
+    )
+elseif(UNIX)
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(${PROJECT_NAME}
+        glfw
+        ${OPENGL_gl_LIBRARY}
+        dl
+        pthread
+    )
+endif()
