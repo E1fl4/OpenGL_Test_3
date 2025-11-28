@@ -26,15 +26,6 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// const glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
-
-// glm::vec3 cameraPos(0.0f, 0.0f,  3.0f);
-// glm::vec3 cameraFront(0.0f, 0.0f, -1.0f);
-// glm::vec3 cameraUp = worldUp;
-
-// float yaw = -90.0f;
-// float pitch = 0.0f;
-
 int main() {
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
@@ -65,7 +56,7 @@ int main() {
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("../resources/shaders/shader.vert", "../resources/shaders/shader.frag");
-    
+
     float vertices[] = {
         -0.5f,  0.5f, 0.5f,     0.0f, 1.0f,
          0.5f,  0.5f, 0.5f,     1.0f, 1.0f,
@@ -149,10 +140,10 @@ int main() {
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
-    
+
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
+
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
@@ -166,19 +157,17 @@ int main() {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        
+
         shader.use();
 
         glm::mat4 view;
-        // view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        // shader.setMat4("view", glm::value_ptr(view));
         view = camera.getViewMatrix();
         shader.setMat4("view", glm::value_ptr(view));
 
         glm::mat4 projection(1.0);
         projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 100.0f);
         shader.setMat4("projection", glm::value_ptr(projection));
-        
+
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
         for (unsigned int i = 0; i < 10; i++) {
@@ -188,7 +177,7 @@ int main() {
             shader.setMat4("model", glm::value_ptr(model));
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-        
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -202,9 +191,8 @@ int main() {
 }
 
 void processInput(GLFWwindow *window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    }
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.processKeyboard(FORWARD, deltaTime);
