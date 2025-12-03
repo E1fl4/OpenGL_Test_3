@@ -80,6 +80,10 @@ void Shader::setMat4(const std::string &name, float* elements) const {
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, elements);
 }
 
+void Shader::setVec3(const std::string &name, const glm::vec3 &vec) {
+    glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &vec[0]);
+}
+
 void Shader::checkCompileErrors(unsigned int shader, std::string type) {
     int success;
     char infoLog[1024];

@@ -5,6 +5,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Shader.h"
 #include "Camera.h"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/fwd.hpp"
 #include <iostream>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -26,6 +28,9 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+glm::vec3 lightSourcePos(1.2f, 1.0f, 2.0f);
+glm::vec3 lightSourceColor(1.0f);
+
 int main() {
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
@@ -37,7 +42,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "OpenGL Test 3", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -55,63 +60,51 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
 
-    Shader shader("../resources/shaders/shader.vert", "../resources/shaders/shader.frag");
+    Shader blockShader("../resources/shaders/shader.vert", "../resources/shaders/blockShader.frag");
+    Shader lightSourceShader("../resources/shaders/shader.vert", "../resources/shaders/lightSourceShader.frag");
 
     float vertices[] = {
-        -0.5f,  0.5f, 0.5f,     0.0f, 1.0f,
-         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,
-         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,
-         0.5f, -0.5f, 0.5f,     1.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,
+        -0.5f,  0.5f, 0.5f,     0.0f, 1.0f,     0.0f, 0.0f, 1.0f,
+         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,     0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,     0.0f, 0.0f, 1.0f,
+         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,     0.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, 0.5f,     1.0f, 0.0f,     0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,     0.0f, 0.0f, 1.0f,
 
-        0.5f,  0.5f,  0.5f,     0.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,     1.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,     0.0f, 1.0f,     1.0f, 0.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f,     1.0f, 0.0f,     1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
 
-        -0.5f, 0.5f, -0.5f,     0.0f, 1.0f,
-         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,
-        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,
-         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,
-         0.5f, 0.5f,  0.5f,     1.0f, 0.0f,
-        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f,     0.0f, 1.0f,     0.0f, 1.0f, 0.0f,
+         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,     0.0f, 1.0f, 0.0f,
+         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 1.0f, 0.0f,
+         0.5f, 0.5f,  0.5f,     1.0f, 0.0f,     0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,     0.0f, 1.0f, 0.0f,
 
-         0.5f,  0.5f, -0.5f,     0.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     1.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,     0.0f, 1.0f,     0.0f, 0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, 0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,     1.0f, 0.0f,     0.0f, 0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, 0.0f, -1.0f,
 
-        -0.5f,  0.5f, -0.5f,     0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,     1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,     0.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,     1.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
 
-        -0.5f, -0.5f,  0.5f,     0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,     1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f
-    };
-
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f), 
-        glm::vec3( 2.0f,  5.0f, -15.0f), 
-        glm::vec3(-1.5f, -2.2f, -2.5f),  
-        glm::vec3(-3.8f, -2.0f, -12.3f),  
-        glm::vec3( 2.4f, -0.4f, -3.5f),  
-        glm::vec3(-1.7f,  3.0f, -7.5f),  
-        glm::vec3( 1.3f, -2.0f, -2.5f),  
-        glm::vec3( 1.5f,  2.0f, -2.5f), 
-        glm::vec3( 1.5f,  0.2f, -1.5f), 
-        glm::vec3(-1.3f,  1.0f, -1.5f)  
+        -0.5f, -0.5f,  0.5f,     0.0f, 1.0f,     0.0f, -1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,     0.0f, -1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,     0.0f, -1.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,     1.0f, 0.0f,     0.0f, -1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f
     };
 
     // TEXTURE
@@ -124,7 +117,7 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     stbi_set_flip_vertically_on_load(true);
     int texWidth, texHeight, nrChannels;
-    unsigned char *textureData = stbi_load("../resources/textures/diamond_ore.png", &texWidth, &texHeight, &nrChannels, 0);
+    unsigned char *textureData = stbi_load("../resources/textures/dirt.png", &texWidth, &texHeight, &nrChannels, 0);
     if (textureData) {
         GLenum colorFormat = (nrChannels == 4) ? GL_RGBA : GL_RGB;
         glTexImage2D(GL_TEXTURE_2D, 0, colorFormat, texWidth, texHeight, 0, colorFormat, GL_UNSIGNED_BYTE, textureData);
@@ -135,19 +128,27 @@ int main() {
     stbi_image_free(textureData);
     //
 
-    unsigned int VAO, VBO;
+    unsigned int VAO, VBO, lightVAO;
     glGenVertexArrays(1, &VAO);
+    glGenVertexArrays(1, &lightVAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
-
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(lightVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
@@ -158,32 +159,61 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        shader.use();
+        lightSourcePos.x = sin(glfwGetTime());
+        lightSourcePos.z = cos(glfwGetTime());
+
+        // lightSourceColor.x = sin(glfwGetTime() * 0.14f) / 2.0f + 0.5f;
+        // lightSourceColor.y = sin(glfwGetTime() * 0.32f) / 2.0f + 0.5f;
+        // lightSourceColor.z = sin(glfwGetTime() * 0.02f) / 2.0f + 0.5f;
 
         glm::mat4 view;
         view = camera.getViewMatrix();
-        shader.setMat4("view", glm::value_ptr(view));
 
         glm::mat4 projection(1.0);
         projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 100.0f);
-        shader.setMat4("projection", glm::value_ptr(projection));
+
+        glm::mat4 blockModel(1.0);
+        glm::mat4 lightSourceModel(1.0);
+        lightSourceModel = glm::translate(lightSourceModel, lightSourcePos);
+        lightSourceModel = glm::scale(lightSourceModel, glm::vec3(0.2f));
+
+        blockShader.use();
+        blockShader.setVec3("LightColor", lightSourceColor);
+        blockShader.setVec3("lightPos", lightSourcePos);
+
+        blockShader.setVec3("material.ambient", glm::vec3(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f));
+        blockShader.setVec3("material.diffuse", glm::vec3(1.0f));
+        blockShader.setVec3("material.specular", glm::vec3(1.0f));
+        blockShader.setFloat("material.shininess", 16.0f);
+
+        blockShader.setVec3("light.ambient", glm::vec3(1.5f));
+        blockShader.setVec3("light.diffuse", glm::vec3(0.5f));
+        blockShader.setVec3("light.specular", glm::vec3(0.5f));
+
+        blockShader.setMat4("view", glm::value_ptr(view));
+        blockShader.setMat4("projection", glm::value_ptr(projection));
+        blockShader.setMat4("model", glm::value_ptr(blockModel));
 
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
-        for (unsigned int i = 0; i < 10; i++) {
-            glm::mat4 model(1.0);
-            model = glm::translate(model, cubePositions[i]);
-            model = glm::rotate(model, i*20.0f, glm::normalize(glm::vec3(1.0f, 2.0f, 0.0f)));
-            shader.setMat4("model", glm::value_ptr(model));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        lightSourceShader.use();
+        lightSourceShader.setVec3("LightColor", lightSourceColor);
+        lightSourceShader.setMat4("view", glm::value_ptr(view));
+        lightSourceShader.setMat4("projection", glm::value_ptr(projection));
+        lightSourceShader.setMat4("model", glm::value_ptr(lightSourceModel));
+
+        glBindVertexArray(lightVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    glDeleteProgram(shader.ID);
+    glDeleteProgram(blockShader.ID);
     glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &VBO);
     glDeleteTextures(1, &texture);
     glfwTerminate();
