@@ -23,7 +23,7 @@ public:
     glm::vec3 right;
     float yaw = -90.0f;
     float pitch = 0.0f;
-    float speed = 2.5f;
+    float speed = 4.0f;
     float sensitivity = 0.1f;
 
     Camera() {
@@ -44,9 +44,9 @@ public:
         if (direction == RIGHT)
             position += right * speed * deltaTime;
         if (direction == UP)
-            position += worldUp * speed * deltaTime;
+            position += worldUp * speed * 0.8f * deltaTime;
         if (direction == DOWN)
-            position -= worldUp * speed * deltaTime;
+            position -= worldUp * speed * 0.8f * deltaTime;
     }
 
     void processMouseMovement(float xOffset, float yOffset) {

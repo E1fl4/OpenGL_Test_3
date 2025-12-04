@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
 #include <iostream>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -14,7 +15,8 @@
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow* window);
+unsigned int loadTexture(char const* path);
 
 Camera camera;
 
@@ -28,8 +30,10 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-glm::vec3 lightSourcePos(1.2f, 1.0f, 2.0f);
-glm::vec3 lightSourceColor(1.0f);
+bool sunlight = true;
+glm::vec3 sunlightDirection = glm::normalize(glm::vec3(0.5f, -1.0f, -0.3f));
+// glm::vec3 lightPos(10.0f, 2.0f, -10.0f);
+glm::vec3 lightPos(0.0f, 3.0f, 0.0f);
 
 int main() {
     if (!glfwInit()) {
@@ -107,26 +111,8 @@ int main() {
         -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f
     };
 
-    // TEXTURE
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);   
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     stbi_set_flip_vertically_on_load(true);
-    int texWidth, texHeight, nrChannels;
-    unsigned char *textureData = stbi_load("../resources/textures/dirt.png", &texWidth, &texHeight, &nrChannels, 0);
-    if (textureData) {
-        GLenum colorFormat = (nrChannels == 4) ? GL_RGBA : GL_RGB;
-        glTexImage2D(GL_TEXTURE_2D, 0, colorFormat, texWidth, texHeight, 0, colorFormat, GL_UNSIGNED_BYTE, textureData);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    } else {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(textureData);
-    //
+    unsigned int texture = loadTexture("../resources/textures/diamond_ore.png");
 
     unsigned int VAO, VBO, lightVAO;
     glGenVertexArrays(1, &VAO);
@@ -150,62 +136,77 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    blockShader.use();
+    blockShader.setInt("material.diffuse", 0);
+
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
-        glClearColor(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f, 1.0f);
+        // glClearColor(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // glClearColor(0.6f, 0.8f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        lightSourcePos.x = sin(glfwGetTime());
-        lightSourcePos.z = cos(glfwGetTime());
+        // lightSourcePos.x = sin(glfwGetTime());
+        // lightSourcePos.z = cos(glfwGetTime());
 
         // lightSourceColor.x = sin(glfwGetTime() * 0.14f) / 2.0f + 0.5f;
         // lightSourceColor.y = sin(glfwGetTime() * 0.32f) / 2.0f + 0.5f;
         // lightSourceColor.z = sin(glfwGetTime() * 0.02f) / 2.0f + 0.5f;
 
-        glm::mat4 view;
-        view = camera.getViewMatrix();
+        glm::mat4 view = camera.getViewMatrix();
 
-        glm::mat4 projection(1.0);
-        projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 100.0f);
 
-        glm::mat4 blockModel(1.0);
-        glm::mat4 lightSourceModel(1.0);
-        lightSourceModel = glm::translate(lightSourceModel, lightSourcePos);
-        lightSourceModel = glm::scale(lightSourceModel, glm::vec3(0.2f));
+        glm::mat4 blockModel(1.0f);
+        // glm::mat4 lightSourceModel(1.0f);
+        // lightSourceModel = glm::translate(lightSourceModel, lightPos);
+        // lightSourceModel = glm::scale(lightSourceModel, glm::vec3(0.2f));
 
         blockShader.use();
-        blockShader.setVec3("LightColor", lightSourceColor);
-        blockShader.setVec3("lightPos", lightSourcePos);
-
-        blockShader.setVec3("material.ambient", glm::vec3(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f));
-        blockShader.setVec3("material.diffuse", glm::vec3(1.0f));
         blockShader.setVec3("material.specular", glm::vec3(1.0f));
         blockShader.setFloat("material.shininess", 16.0f);
 
-        blockShader.setVec3("light.ambient", glm::vec3(1.5f));
-        blockShader.setVec3("light.diffuse", glm::vec3(0.5f));
-        blockShader.setVec3("light.specular", glm::vec3(0.5f));
+        blockShader.setBool("Sunlight", sunlight);
+        if (sunlight) {
+            blockShader.setVec3("sunlightDir", sunlightDirection);
+            blockShader.setVec3("light.ambient", glm::vec3(0.3f));
+            blockShader.setVec3("light.diffuse", glm::vec3(1.0f));
+            blockShader.setVec3("light.specular", glm::vec3(0.3f));
+        } else {
+            blockShader.setVec3("lightPos", lightPos);
+            blockShader.setVec3("light.ambient", glm::vec3(0.3f));
+            blockShader.setVec3("light.diffuse", glm::vec3(1.0f));
+            blockShader.setVec3("light.specular", glm::vec3(0.3f));
+        }
 
         blockShader.setMat4("view", glm::value_ptr(view));
         blockShader.setMat4("projection", glm::value_ptr(projection));
         blockShader.setMat4("model", glm::value_ptr(blockModel));
 
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        lightSourceShader.use();
-        lightSourceShader.setVec3("LightColor", lightSourceColor);
-        lightSourceShader.setMat4("view", glm::value_ptr(view));
-        lightSourceShader.setMat4("projection", glm::value_ptr(projection));
-        lightSourceShader.setMat4("model", glm::value_ptr(lightSourceModel));
+        for (unsigned int i = 0; i < 10; i++) {
+            for (unsigned int j = 0; j < 10; j++) {
+                blockModel = glm::translate(glm::mat4(1.0f), glm::vec3((float)i * 2, 0.0f, (float)j * -2));
+                blockShader.setMat4("model", glm::value_ptr(blockModel));
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
+        }
 
-        glBindVertexArray(lightVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // lightSourceShader.use();
+        // lightSourceShader.setVec3("LightColor", lightSourceColor);
+        // lightSourceShader.setMat4("view", glm::value_ptr(view));
+        // lightSourceShader.setMat4("projection", glm::value_ptr(projection));
+        // lightSourceShader.setMat4("model", glm::value_ptr(lightSourceModel));
+
+        // glBindVertexArray(lightVAO);
+        // glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -255,5 +256,37 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     lastY = ypos;
 
     camera.processMouseMovement(xOffset, yOffset);
+}
+
+unsigned int loadTexture(char const * path) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data) {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        stbi_image_free(data);
+    } else {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+    return textureID;
 }
 
