@@ -9,6 +9,7 @@
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
 #include <iostream>
+#include <string>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -25,15 +26,17 @@ const unsigned int SCREEN_HEIGHT = 700;
 
 float lastX = 400;
 float lastY = 300;
-bool firstMouse = true;
+bool firstMouse = false;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-bool sunlight = true;
+bool doSunlight = false;
 glm::vec3 sunlightDirection = glm::normalize(glm::vec3(0.5f, -1.0f, -0.3f));
-// glm::vec3 lightPos(10.0f, 2.0f, -10.0f);
-glm::vec3 lightPos(0.0f, 3.0f, 0.0f);
+glm::vec4 pointLightPositions[] = {
+    glm::vec4(0.0f, 2.0f, -9.0f, 1.0f),
+    glm::vec4(20.0f, 2.0f, -9.0f, 1.0f)
+};
 
 int main() {
     if (!glfwInit()) {
@@ -170,17 +173,21 @@ int main() {
         blockShader.setVec3("material.specular", glm::vec3(1.0f));
         blockShader.setFloat("material.shininess", 16.0f);
 
-        blockShader.setBool("Sunlight", sunlight);
-        if (sunlight) {
-            blockShader.setVec3("sunlightDir", sunlightDirection);
-            blockShader.setVec3("light.ambient", glm::vec3(0.3f));
-            blockShader.setVec3("light.diffuse", glm::vec3(1.0f));
-            blockShader.setVec3("light.specular", glm::vec3(0.3f));
-        } else {
-            blockShader.setVec3("lightPos", lightPos);
-            blockShader.setVec3("light.ambient", glm::vec3(0.3f));
-            blockShader.setVec3("light.diffuse", glm::vec3(1.0f));
-            blockShader.setVec3("light.specular", glm::vec3(0.3f));
+        blockShader.setBool("DoSunlight", doSunlight);
+        if (doSunlight) {
+            blockShader.setVec3("Sunlight.direction", sunlightDirection);
+            blockShader.setVec3("Sunlight.ambient", glm::vec3(0.3f));
+            blockShader.setVec3("Sunlight.diffuse", glm::vec3(1.0f));
+            blockShader.setVec3("Sunlight.specular", glm::vec3(0.3f));
+        }
+        for (unsigned int i = 0; i < 2; i++) {
+            blockShader.setVec3("PointLights[" + std::to_string(i) + "].position", view * pointLightPositions[i]);
+            blockShader.setVec3("PointLights[" + std::to_string(i) + "].ambient", glm::vec3(0.3f));
+            blockShader.setVec3("PointLights[" + std::to_string(i) + "].diffuse", glm::vec3(1.0f));
+            blockShader.setVec3("PointLights[" + std::to_string(i) + "].specular", glm::vec3(0.3f));
+            blockShader.setFloat("PointLights[" + std::to_string(i) + "].constant", 1.0f);
+            blockShader.setFloat("PointLights[" + std::to_string(i) + "].linear", 0.09f);
+            blockShader.setFloat("PointLights[" + std::to_string(i) + "].quadratic", 0.032f);
         }
 
         blockShader.setMat4("view", glm::value_ptr(view));
