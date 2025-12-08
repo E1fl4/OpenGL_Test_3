@@ -25,9 +25,12 @@ if(APPLE)
     include_directories(${HOMEBREW_PREFIX}/include)
     link_directories(${HOMEBREW_PREFIX}/lib)
 
+    find_package(assimp REQUIRED)
+
     target_link_libraries(${PROJECT_NAME}
         "-L${HOMEBREW_PREFIX}/lib"
         glfw
+        assimp::assimp
         "-framework Cocoa"
         "-framework IOKit"
         "-framework CoreVideo"

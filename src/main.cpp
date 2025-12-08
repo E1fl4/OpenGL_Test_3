@@ -5,11 +5,13 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Shader.h"
 #include "Camera.h"
+#include "Mesh.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
 #include <iostream>
 #include <string>
+#include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -17,26 +19,29 @@
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
-unsigned int loadTexture(char const* path);
+unsigned int loadTexture(const char* path);
 
 Camera camera;
 
 const unsigned int SCREEN_WIDTH = 1200;
 const unsigned int SCREEN_HEIGHT = 700;
 
-float lastX = 400;
-float lastY = 300;
+float lastX = SCREEN_WIDTH/2.0f;
+float lastY = SCREEN_HEIGHT/2.0f;
 bool firstMouse = false;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-bool doSunlight = false;
+bool doSunlight = true;
 glm::vec3 sunlightDirection = glm::normalize(glm::vec3(0.5f, -1.0f, -0.3f));
 glm::vec4 pointLightPositions[] = {
-    glm::vec4(0.0f, 2.0f, -9.0f, 1.0f),
-    glm::vec4(20.0f, 2.0f, -9.0f, 1.0f)
+    // glm::vec4(0.0f, 2.0f, -9.0f, 1.0f),
+    // glm::vec4(18.0f, 2.0f, -9.0f, 1.0f)
 };
+
+std::vector<glm::vec3> blocks;
+
 
 int main() {
     if (!glfwInit()) {
@@ -139,14 +144,20 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    for (unsigned int i = 0; i < 50; i++) {
+        for (unsigned int j = 0; j < 50; j++) {
+            blocks.push_back(glm::vec3((float)i * 2, 0.0f, (float)j * -2));
+        }
+    }
+
     blockShader.use();
-    blockShader.setInt("material.diffuse", 0);
+    blockShader.setInt("material.texture_diffuse1", 0);
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
         // glClearColor(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f, 1.0f);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        // glClearColor(0.6f, 0.8f, 1.0f, 1.0f);
+        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(0.6f, 0.8f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float currentFrame = glfwGetTime();
@@ -162,7 +173,7 @@ int main() {
 
         glm::mat4 view = camera.getViewMatrix();
 
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
 
         glm::mat4 blockModel(1.0f);
         // glm::mat4 lightSourceModel(1.0f);
@@ -175,12 +186,13 @@ int main() {
 
         blockShader.setBool("DoSunlight", doSunlight);
         if (doSunlight) {
-            blockShader.setVec3("Sunlight.direction", sunlightDirection);
+            blockShader.setVec3("Sunlight.direction", glm::mat3(view) * sunlightDirection);
             blockShader.setVec3("Sunlight.ambient", glm::vec3(0.3f));
             blockShader.setVec3("Sunlight.diffuse", glm::vec3(1.0f));
             blockShader.setVec3("Sunlight.specular", glm::vec3(0.3f));
         }
-        for (unsigned int i = 0; i < 2; i++) {
+
+        for (unsigned int i = 0; i < 0; i++) {
             blockShader.setVec3("PointLights[" + std::to_string(i) + "].position", view * pointLightPositions[i]);
             blockShader.setVec3("PointLights[" + std::to_string(i) + "].ambient", glm::vec3(0.3f));
             blockShader.setVec3("PointLights[" + std::to_string(i) + "].diffuse", glm::vec3(1.0f));
@@ -198,12 +210,18 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
 
-        for (unsigned int i = 0; i < 10; i++) {
-            for (unsigned int j = 0; j < 10; j++) {
-                blockModel = glm::translate(glm::mat4(1.0f), glm::vec3((float)i * 2, 0.0f, (float)j * -2));
-                blockShader.setMat4("model", glm::value_ptr(blockModel));
-                glDrawArrays(GL_TRIANGLES, 0, 36);
-            }
+        // for (unsigned int i = 0; i < 10; i++) {
+        //     for (unsigned int j = 0; j < 10; j++) {
+        //         blockModel = glm::translate(glm::mat4(1.0f), glm::vec3((float)i * 2, 0.0f, (float)j * -2));
+        //         blockShader.setMat4("model", glm::value_ptr(blockModel));
+        //         glDrawArrays(GL_TRIANGLES, 0, 36);
+        //     }
+        // }
+
+        for (glm::vec3 block : blocks) {
+            blockModel = glm::translate(glm::mat4(1.0f), block);
+            blockShader.setMat4("model", glm::value_ptr(blockModel));
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
         // lightSourceShader.use();
