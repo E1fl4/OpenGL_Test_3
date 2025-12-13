@@ -5,7 +5,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Shader.h"
 #include "Camera.h"
-#include "Block.h"
+#include "Mesh.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
@@ -40,6 +40,9 @@ glm::vec4 pointLightPositions[] = {
     // glm::vec4(18.0f, 2.0f, -9.0f, 1.0f)
 };
 
+std::vector<glm::vec3> blocks;
+
+
 int main() {
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
@@ -72,11 +75,80 @@ int main() {
     Shader blockShader("../resources/shaders/shader.vert", "../resources/shaders/blockShader.frag");
     Shader lightSourceShader("../resources/shaders/shader.vert", "../resources/shaders/lightSourceShader.frag");
 
+    float vertices[] = {
+        -0.5f,  0.5f, 0.5f,     0.0f, 1.0f,     0.0f, 0.0f, 1.0f,
+         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,     0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,     0.0f, 0.0f, 1.0f,
+         0.5f,  0.5f, 0.5f,     1.0f, 1.0f,     0.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, 0.5f,     1.0f, 0.0f,     0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f,     0.0f, 0.0f, 1.0f,
+
+        0.5f,  0.5f,  0.5f,     0.0f, 1.0f,     1.0f, 0.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f,     1.0f, 0.0f,     1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,     0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
+
+        -0.5f, 0.5f, -0.5f,     0.0f, 1.0f,     0.0f, 1.0f, 0.0f,
+         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,     0.0f, 1.0f, 0.0f,
+         0.5f, 0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 1.0f, 0.0f,
+         0.5f, 0.5f,  0.5f,     1.0f, 0.0f,     0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f,  0.5f,     0.0f, 0.0f,     0.0f, 1.0f, 0.0f,
+
+         0.5f,  0.5f, -0.5f,     0.0f, 1.0f,     0.0f, 0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, 0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,     1.0f, 0.0f,     0.0f, 0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, 0.0f, -1.0f,
+
+        -0.5f,  0.5f, -0.5f,     0.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,     1.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,     1.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,     0.0f, 1.0f,     0.0f, -1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,     0.0f, -1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,     1.0f, 1.0f,     0.0f, -1.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,     1.0f, 0.0f,     0.0f, -1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f
+    };
+
     stbi_set_flip_vertically_on_load(true);
     unsigned int texture = loadTexture("../resources/textures/diamond_ore.png");
 
-    Block testBlock(glm::vec3(0.0f, 0.0f, 0.0f), loadTexture("../resources/textures/dirt.png"));
-    Block testBlock2(glm::vec3(2.0f, 0.0f, 0.0f), loadTexture("../resources/textures/diamond_ore.png"));
+    unsigned int VAO, VBO, lightVAO;
+    glGenVertexArrays(1, &VAO);
+    glGenVertexArrays(1, &lightVAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(lightVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    for (unsigned int i = 0; i < 50; i++) {
+        for (unsigned int j = 0; j < 50; j++) {
+            blocks.push_back(glm::vec3((float)i * 2, 0.0f, (float)j * -2));
+        }
+    }
 
     blockShader.use();
     blockShader.setInt("material.texture_diffuse1", 0);
@@ -92,11 +164,21 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        // lightSourcePos.x = sin(glfwGetTime());
+        // lightSourcePos.z = cos(glfwGetTime());
+
+        // lightSourceColor.x = sin(glfwGetTime() * 0.14f) / 2.0f + 0.5f;
+        // lightSourceColor.y = sin(glfwGetTime() * 0.32f) / 2.0f + 0.5f;
+        // lightSourceColor.z = sin(glfwGetTime() * 0.02f) / 2.0f + 0.5f;
+
         glm::mat4 view = camera.getViewMatrix();
 
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
 
         glm::mat4 blockModel(1.0f);
+        // glm::mat4 lightSourceModel(1.0f);
+        // lightSourceModel = glm::translate(lightSourceModel, lightPos);
+        // lightSourceModel = glm::scale(lightSourceModel, glm::vec3(0.2f));
 
         blockShader.use();
         blockShader.setVec3("material.specular", glm::vec3(1.0f));
@@ -124,14 +206,23 @@ int main() {
         blockShader.setMat4("projection", glm::value_ptr(projection));
         blockShader.setMat4("model", glm::value_ptr(blockModel));
 
-        testBlock.draw(blockShader);
-        testBlock2.draw(blockShader);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glBindVertexArray(VAO);
 
-        // for (glm::vec3 block : blocks) {
-        //     blockModel = glm::translate(glm::mat4(1.0f), block);
-        //     blockShader.setMat4("model", glm::value_ptr(blockModel));
-        //     glDrawArrays(GL_TRIANGLES, 0, 36);
+        // for (unsigned int i = 0; i < 10; i++) {
+        //     for (unsigned int j = 0; j < 10; j++) {
+        //         blockModel = glm::translate(glm::mat4(1.0f), glm::vec3((float)i * 2, 0.0f, (float)j * -2));
+        //         blockShader.setMat4("model", glm::value_ptr(blockModel));
+        //         glDrawArrays(GL_TRIANGLES, 0, 36);
+        //     }
         // }
+
+        for (glm::vec3 block : blocks) {
+            blockModel = glm::translate(glm::mat4(1.0f), block);
+            blockShader.setMat4("model", glm::value_ptr(blockModel));
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         // lightSourceShader.use();
         // lightSourceShader.setVec3("LightColor", lightSourceColor);
@@ -147,6 +238,9 @@ int main() {
     }
 
     glDeleteProgram(blockShader.ID);
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &lightVAO);
+    glDeleteBuffers(1, &VBO);
     glDeleteTextures(1, &texture);
     glfwTerminate();
     return 0;
