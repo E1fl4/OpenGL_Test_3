@@ -6,6 +6,7 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include <string>
+#include <iostream>
 
 class Block {
 public:
@@ -17,6 +18,24 @@ public:
         this->texture = texture;
         setupFaces();
     }
+    ~Block() {
+        glDeleteVertexArrays(1, &topVAO);
+        glDeleteVertexArrays(1, &bottomVAO);
+        glDeleteVertexArrays(1, &northVAO);
+        glDeleteVertexArrays(1, &southVAO);
+        glDeleteVertexArrays(1, &eastVAO);
+        glDeleteVertexArrays(1, &westVAO);
+        glDeleteBuffers(1, &topVBO);
+        glDeleteBuffers(1, &bottomVBO);
+        glDeleteBuffers(1, &northVBO);
+        glDeleteBuffers(1, &southVBO);
+        glDeleteBuffers(1, &eastVBO);
+        glDeleteBuffers(1, &westVBO);
+        glDeleteTextures(1, &texture);
+        std::cout << "destructed!\n";
+    }
+    Block(const Block&&) = delete;
+    Block &operator = (const Block&) = delete;
     void draw(const Shader &shader) {
         glm::mat4 model(1.0f);
         model = glm::translate(model, position);

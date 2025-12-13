@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -6,10 +8,10 @@
 #include "Shader.h"
 #include "Camera.h"
 #include "Block.h"
-#include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,7 @@
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow* window);
 unsigned int loadTexture(const char* path);
 
@@ -40,6 +43,8 @@ glm::vec4 pointLightPositions[] = {
     // glm::vec4(18.0f, 2.0f, -9.0f, 1.0f)
 };
 
+std::vector<std::unique_ptr<Block>> blocks;
+
 int main() {
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
@@ -60,6 +65,7 @@ int main() {
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetCursorPosCallback(window, mouseCallback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -70,13 +76,12 @@ int main() {
     glEnable(GL_DEPTH_TEST);
 
     Shader blockShader("../resources/shaders/shader.vert", "../resources/shaders/blockShader.frag");
-    Shader lightSourceShader("../resources/shaders/shader.vert", "../resources/shaders/lightSourceShader.frag");
 
     stbi_set_flip_vertically_on_load(true);
     unsigned int texture = loadTexture("../resources/textures/diamond_ore.png");
 
-    Block testBlock(glm::vec3(0.0f, 0.0f, 0.0f), loadTexture("../resources/textures/dirt.png"));
-    Block testBlock2(glm::vec3(2.0f, 0.0f, 0.0f), loadTexture("../resources/textures/diamond_ore.png"));
+    blocks.push_back(std::make_unique<Block>(glm::vec3(0.0f, 0.0f, 0.0f), loadTexture("../resources/textures/dirt.png")));
+    blocks.push_back(std::make_unique<Block>(glm::vec3(1.0f, 0.0f, 0.0f), loadTexture("../resources/textures/diamond_ore.png")));
 
     blockShader.use();
     blockShader.setInt("material.texture_diffuse1", 0);
@@ -93,10 +98,7 @@ int main() {
         lastFrame = currentFrame;
 
         glm::mat4 view = camera.getViewMatrix();
-
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
-
-        glm::mat4 blockModel(1.0f);
 
         blockShader.use();
         blockShader.setVec3("material.specular", glm::vec3(1.0f));
@@ -105,9 +107,9 @@ int main() {
         blockShader.setBool("DoSunlight", doSunlight);
         if (doSunlight) {
             blockShader.setVec3("Sunlight.direction", glm::mat3(view) * sunlightDirection);
-            blockShader.setVec3("Sunlight.ambient", glm::vec3(0.3f));
+            blockShader.setVec3("Sunlight.ambient", glm::vec3(0.38f));
             blockShader.setVec3("Sunlight.diffuse", glm::vec3(1.0f));
-            blockShader.setVec3("Sunlight.specular", glm::vec3(0.3f));
+            blockShader.setVec3("Sunlight.specular", glm::vec3(0.2f));
         }
 
         for (unsigned int i = 0; i < 0; i++) {
@@ -122,25 +124,10 @@ int main() {
 
         blockShader.setMat4("view", glm::value_ptr(view));
         blockShader.setMat4("projection", glm::value_ptr(projection));
-        blockShader.setMat4("model", glm::value_ptr(blockModel));
 
-        testBlock.draw(blockShader);
-        testBlock2.draw(blockShader);
-
-        // for (glm::vec3 block : blocks) {
-        //     blockModel = glm::translate(glm::mat4(1.0f), block);
-        //     blockShader.setMat4("model", glm::value_ptr(blockModel));
-        //     glDrawArrays(GL_TRIANGLES, 0, 36);
-        // }
-
-        // lightSourceShader.use();
-        // lightSourceShader.setVec3("LightColor", lightSourceColor);
-        // lightSourceShader.setMat4("view", glm::value_ptr(view));
-        // lightSourceShader.setMat4("projection", glm::value_ptr(projection));
-        // lightSourceShader.setMat4("model", glm::value_ptr(lightSourceModel));
-
-        // glBindVertexArray(lightVAO);
-        // glDrawArrays(GL_TRIANGLES, 0, 36);
+        for (const auto &block : blocks) {
+            block->draw(blockShader);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -148,6 +135,7 @@ int main() {
 
     glDeleteProgram(blockShader.ID);
     glDeleteTextures(1, &texture);
+    blocks.clear();
     glfwTerminate();
     return 0;
 }
@@ -187,6 +175,64 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     lastY = ypos;
 
     camera.processMouseMovement(xOffset, yOffset);
+}
+
+void mineBlock(Block* hitBlock) {
+    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const auto &blockPtr) {
+        return hitBlock == blockPtr.get();
+    }), blocks.end());
+}
+
+void placeBlock(const glm::vec3 &position) {
+    blocks.push_back(std::make_unique<Block>(position, loadTexture("../resources/textures/diamond_ore.png")));
+}
+
+void tryPlaceBlock(Block* hitBlock) {
+    float dist;
+    glm::vec3 pos = hitBlock->position;
+    if (camera.isLookingAt(pos + glm::vec3(0.0f, 1.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
+        glm::dot(camera.front, glm::vec3(0.0f, 1.0f, 0.0f)) < 0)
+        placeBlock(hitBlock->position + glm::vec3(0.0f, 1.0f, 0.0f));
+    if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 0.0f, 1.0f), dist) &&
+        glm::dot(camera.front, glm::vec3(0.0f, -1.0f, 0.0f)) < 0)
+        placeBlock(hitBlock->position + glm::vec3(0.0f, -1.0f, 0.0f));
+    if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 1.0f, 0.0f), dist) &&
+        glm::dot(camera.front, glm::vec3(0.0f, 0.0f, -1.0f)) < 0)
+        placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, -1.0f));
+    if (camera.isLookingAt(pos + glm::vec3(0.0f, 0.0f, 1.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
+        glm::dot(camera.front, glm::vec3(0.0f, 0.0f, 1.0f)) < 0)
+        placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, 1.0f));
+    if (camera.isLookingAt(pos + glm::vec3(1.0f, 0.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
+        glm::dot(camera.front, glm::vec3(1.0f, 0.0f, 0.0f)) < 0)
+        placeBlock(hitBlock->position + glm::vec3(1.0f, 0.0f, 0.0f));
+    if (camera.isLookingAt(pos, pos + glm::vec3(0.0f, 1.0f, 1.0f), dist) &&
+        glm::dot(camera.front, glm::vec3(-1.0f, 0.0f, 0.0f)) < 0)
+        placeBlock(hitBlock->position + glm::vec3(-1.0f, 0.0f, 0.0f));
+}
+
+void tryFindBlock(int button) {
+    float closest = INFINITY;
+    Block* hitBlock = nullptr;
+    for (const auto &blockPtr : blocks) {
+        Block &block = *blockPtr;
+        float dist;
+        if (camera.isLookingAt(block.position, block.position + glm::vec3(1.0f, 1.0f, 1.0f), dist)) {
+            if (dist < closest) {
+                closest = dist;
+                hitBlock = &block;
+            }
+        }
+    }
+    if (hitBlock) {
+        if (button == GLFW_MOUSE_BUTTON_LEFT) mineBlock(hitBlock);
+        if (button == GLFW_MOUSE_BUTTON_RIGHT) tryPlaceBlock(hitBlock);
+    }
+}
+
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    if (action == GLFW_PRESS) {
+        tryFindBlock(button);
+    }
 }
 
 unsigned int loadTexture(char const * path) {
