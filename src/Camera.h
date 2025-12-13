@@ -3,8 +3,6 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <algorithm>
-#include <utility>
 
 enum movementDirection {
     FORWARD,
@@ -34,30 +32,6 @@ public:
 
     glm::mat4 getViewMatrix() {
         return glm::lookAt(position, position + front, up);
-    }
-
-    // if front x, y or x is 0, we are cooked. might fix later.
-    bool isLookingAt(const glm::vec3 &boxMin, const glm::vec3 &boxMax, float &dist) {
-        // P(t) = origin + dir * t
-        // t = (P(t) - origin) / dir
-        glm::vec3 tmin((boxMin.x - position.x) / front.x, (boxMin.y - position.y) / front.y, (boxMin.z - position.z) / front.z);
-        glm::vec3 tmax((boxMax.x - position.x) / front.x, (boxMax.y - position.y) / front.y, (boxMax.z - position.z) / front.z);
-        if (tmin.x > tmax.x) std::swap(tmin.x, tmax.x);
-        if (tmin.y > tmax.y) std::swap(tmin.y, tmax.y);
-        if (tmin.z > tmax.z) std::swap(tmin.z, tmax.z);
-        if (tmin.x > tmax.y || tmin.y > tmax.x) return false;
-        float mergedtmin = std::max(tmin.x, tmin.y);
-        float mergedtmax = std::min(tmax.x, tmax.y);
-        if (mergedtmin > tmax.z || tmin.z > mergedtmax) return false;
-        mergedtmin = std::max(mergedtmin, tmin.z);
-        mergedtmax = std::min(mergedtmax, tmax.z);
-        dist = mergedtmin;
-        // if ray entry is behind the camera, try ray exit.
-        if (dist < 0) {
-            dist = mergedtmax;
-            if (dist < 0) return false;
-        }
-        return true;
     }
 
     void processKeyboard(movementDirection direction, float deltaTime) {
