@@ -211,7 +211,7 @@ void tryPlaceBlock(Block* hitBlock) {
 }
 
 void tryFindBlock(int button) {
-    float closest = INFINITY;
+    float closest = 6.0f;
     Block* hitBlock = nullptr;
     for (const auto &blockPtr : blocks) {
         Block &block = *blockPtr;

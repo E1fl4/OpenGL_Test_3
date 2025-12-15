@@ -6,7 +6,6 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include <string>
-#include <iostream>
 
 class Block {
 public:
@@ -32,7 +31,6 @@ public:
         glDeleteBuffers(1, &eastVBO);
         glDeleteBuffers(1, &westVBO);
         glDeleteTextures(1, &texture);
-        std::cout << "destructed!\n";
     }
     Block(const Block&&) = delete;
     Block &operator = (const Block&) = delete;
