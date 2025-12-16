@@ -7,14 +7,17 @@
 #include "glm/gtc/type_ptr.hpp"
 #include <string>
 
+struct BlockType {
+    unsigned int textures[6];
+};
+
 class Block {
 public:
     glm::vec3 position;
-    unsigned int texture;
-    std::string name = "diamond_ore";
-    Block(glm::vec3 position, unsigned int texture) {
+    BlockType blockType;
+    Block(const glm::vec3& position, const BlockType& blockType) {
         this->position = position;
-        this->texture = texture;
+        this->blockType = blockType;
         setupFaces();
     }
     ~Block() {
@@ -30,30 +33,36 @@ public:
         glDeleteBuffers(1, &southVBO);
         glDeleteBuffers(1, &eastVBO);
         glDeleteBuffers(1, &westVBO);
-        glDeleteTextures(1, &texture);
     }
     Block(const Block&&) = delete;
     Block &operator = (const Block&) = delete;
-    void draw(const Shader &shader) {
+    void draw(const Shader& shader) {
         glm::mat4 model(1.0f);
         model = glm::translate(model, position);
         shader.setMat4("model", glm::value_ptr(model));
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
 
+        glBindTexture(GL_TEXTURE_2D, blockType.textures[0]);
         glBindVertexArray(topVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, blockType.textures[1]);
         glBindVertexArray(bottomVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, blockType.textures[2]);
         glBindVertexArray(northVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, blockType.textures[3]);
         glBindVertexArray(southVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, blockType.textures[4]);
         glBindVertexArray(eastVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, blockType.textures[5]);
         glBindVertexArray(westVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindVertexArray(0);
     }
 private:
     unsigned int topVAO, bottomVAO, northVAO, southVAO, eastVAO, westVAO;

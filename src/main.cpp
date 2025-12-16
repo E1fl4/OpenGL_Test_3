@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cmath>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -23,6 +22,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow* window);
 unsigned int loadTexture(const char* path);
+void initBlockTypes();
 
 Camera camera;
 
@@ -31,7 +31,7 @@ const unsigned int SCREEN_HEIGHT = 700;
 
 float lastX = SCREEN_WIDTH/2.0f;
 float lastY = SCREEN_HEIGHT/2.0f;
-bool firstMouse = false;
+bool firstMouse = true;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -43,7 +43,14 @@ glm::vec4 pointLightPositions[] = {
     // glm::vec4(18.0f, 2.0f, -9.0f, 1.0f)
 };
 
+BlockType diamond_ore;
+BlockType dirt;
+BlockType none;
+
 std::vector<std::unique_ptr<Block>> blocks;
+
+BlockType* hotbar[9] = { &dirt, &diamond_ore, &none, &none, &none, &none, &none, &none, &none };
+unsigned int activeHotbarSlot = 0;
 
 int main() {
     if (!glfwInit()) {
@@ -75,16 +82,49 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
 
-    Shader blockShader("../resources/shaders/shader.vert", "../resources/shaders/blockShader.frag");
+    Shader blockShader("../resources/shaders/block.vert", "../resources/shaders/block.frag");
+    Shader crosshairShader("../resources/shaders/crosshair.vert", "../resources/shaders/crosshair.frag");
 
     stbi_set_flip_vertically_on_load(true);
-    unsigned int texture = loadTexture("../resources/textures/diamond_ore.png");
 
-    blocks.push_back(std::make_unique<Block>(glm::vec3(0.0f, 0.0f, 0.0f), loadTexture("../resources/textures/dirt.png")));
-    blocks.push_back(std::make_unique<Block>(glm::vec3(1.0f, 0.0f, 0.0f), loadTexture("../resources/textures/diamond_ore.png")));
+    initBlockTypes();
+
+    blocks.reserve(40);
+    blocks.push_back(std::make_unique<Block>(glm::vec3(0.0f, 0.0f, 0.0f), dirt));
+    blocks.push_back(std::make_unique<Block>(glm::vec3(1.0f, 0.0f, 0.0f), diamond_ore));
+
+    float crosshairVertices[] = {
+        -0.006f, -0.05f,
+        0.006f, 0.05f,
+        -0.006f, 0.05f,
+
+        -0.006f, -0.05f,
+        0.006f, -0.05f,
+        0.006f, 0.05f,
+
+        -0.05f, -0.006f,
+        0.05f, 0.006f,
+        -0.05f, 0.006f,
+
+        -0.05f, -0.006f,
+        0.05f, -0.006f,
+        0.05f, 0.006f
+    };
+    unsigned int crosshairVAO, crosshairVBO;
+    glGenVertexArrays(1, &crosshairVAO);
+    glGenBuffers(1, &crosshairVBO);
+    glBindVertexArray(crosshairVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, crosshairVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(crosshairVertices), crosshairVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
 
     blockShader.use();
     blockShader.setInt("material.texture_diffuse1", 0);
+
+    crosshairShader.use();
+    crosshairShader.setFloat("aspectRatio", (float)SCREEN_WIDTH/SCREEN_HEIGHT);
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
@@ -129,13 +169,22 @@ int main() {
             block->draw(blockShader);
         }
 
+        crosshairShader.use();
+        glBindVertexArray(crosshairVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 12);
+        glBindVertexArray(0);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     glDeleteProgram(blockShader.ID);
-    glDeleteTextures(1, &texture);
+    glDeleteProgram(crosshairShader.ID);
     blocks.clear();
+    glDeleteTextures(6, diamond_ore.textures);
+    glDeleteTextures(6, dirt.textures);
+    glDeleteVertexArrays(1, &crosshairVAO);
+    glDeleteBuffers(1, &crosshairVBO);
     glfwTerminate();
     return 0;
 }
@@ -156,6 +205,25 @@ void processInput(GLFWwindow *window) {
         camera.processKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         camera.processKeyboard(DOWN, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+        activeHotbarSlot = 0;
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+        activeHotbarSlot = 1;
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+        activeHotbarSlot = 2;
+    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
+        activeHotbarSlot = 3;
+    if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
+        activeHotbarSlot = 4;
+    if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
+        activeHotbarSlot = 5;
+    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
+        activeHotbarSlot = 6;
+    if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+        activeHotbarSlot = 7;
+    if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
+        activeHotbarSlot = 8;
 }
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
@@ -184,7 +252,8 @@ void mineBlock(Block* hitBlock) {
 }
 
 void placeBlock(const glm::vec3 &position) {
-    blocks.push_back(std::make_unique<Block>(position, loadTexture("../resources/textures/diamond_ore.png")));
+    if (hotbar[activeHotbarSlot] == &none) return;
+    blocks.push_back(std::make_unique<Block>(position, *hotbar[activeHotbarSlot]));
 }
 
 void tryPlaceBlock(Block* hitBlock) {
@@ -265,5 +334,14 @@ unsigned int loadTexture(char const * path) {
         stbi_image_free(data);
     }
     return textureID;
+}
+
+void initBlockTypes() {
+    const unsigned int diamond_ore_texture_1 = loadTexture("../resources/textures/diamond_ore.png");
+    const unsigned int dirt_texture_1 = loadTexture("../resources/textures/dirt.png");
+    for (unsigned int i = 0; i < 6; i++) {
+        diamond_ore.textures[i] = diamond_ore_texture_1;
+        dirt.textures[i] = dirt_texture_1;
+    }
 }
 
