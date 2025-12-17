@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cstddef>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include "Shader.h"
-#include "glm/ext/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include <string>
+#include "Camera.h"
+#include "glm/fwd.hpp"
 
 struct BlockType {
     unsigned int textures[6];
@@ -15,186 +15,20 @@ class Block {
 public:
     glm::vec3 position;
     BlockType blockType;
-    Block(const glm::vec3& position, const BlockType& blockType) {
-        this->position = position;
-        this->blockType = blockType;
-        setupFaces();
-    }
-    ~Block() {
-        glDeleteVertexArrays(1, &topVAO);
-        glDeleteVertexArrays(1, &bottomVAO);
-        glDeleteVertexArrays(1, &northVAO);
-        glDeleteVertexArrays(1, &southVAO);
-        glDeleteVertexArrays(1, &eastVAO);
-        glDeleteVertexArrays(1, &westVAO);
-        glDeleteBuffers(1, &topVBO);
-        glDeleteBuffers(1, &bottomVBO);
-        glDeleteBuffers(1, &northVBO);
-        glDeleteBuffers(1, &southVBO);
-        glDeleteBuffers(1, &eastVBO);
-        glDeleteBuffers(1, &westVBO);
-    }
+    Block(const glm::vec3& position, const BlockType& blockType);
+    ~Block();
     Block(const Block&&) = delete;
     Block &operator = (const Block&) = delete;
-    void draw(const Shader& shader) {
-        glm::mat4 model(1.0f);
-        model = glm::translate(model, position);
-        shader.setMat4("model", glm::value_ptr(model));
-
-        glActiveTexture(GL_TEXTURE0);
-
-        glBindTexture(GL_TEXTURE_2D, blockType.textures[0]);
-        glBindVertexArray(topVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindTexture(GL_TEXTURE_2D, blockType.textures[1]);
-        glBindVertexArray(bottomVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindTexture(GL_TEXTURE_2D, blockType.textures[2]);
-        glBindVertexArray(northVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindTexture(GL_TEXTURE_2D, blockType.textures[3]);
-        glBindVertexArray(southVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindTexture(GL_TEXTURE_2D, blockType.textures[4]);
-        glBindVertexArray(eastVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindTexture(GL_TEXTURE_2D, blockType.textures[5]);
-        glBindVertexArray(westVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        glBindVertexArray(0);
-    }
+    void draw(const unsigned int* VAOs, const Shader& shader, const Camera& camera);
 private:
-    unsigned int topVAO, bottomVAO, northVAO, southVAO, eastVAO, westVAO;
-    unsigned int topVBO, bottomVBO, northVBO, southVBO, eastVBO, westVBO;
-    void setupFaces() {
-        float southVertices[] = {
-            0.0f, 1.0f, 1.0f,     0.0f, 1.0f,     0.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,     1.0f, 1.0f,     0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,     0.0f, 0.0f,     0.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,     1.0f, 1.0f,     0.0f, 0.0f, 1.0f,
-            1.0f, 0.0f, 1.0f,     1.0f, 0.0f,     0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,     0.0f, 0.0f,     0.0f, 0.0f, 1.0f,
-        };
+};
 
-        float eastVertices[] = {
-            1.0f, 1.0f, 1.0f,     0.0f, 1.0f,     1.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,     1.0f, 1.0f,     1.0f, 0.0f, 0.0f,
-            1.0f, 0.0f, 1.0f,     0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,     1.0f, 1.0f,     1.0f, 0.0f, 0.0f,
-            1.0f, 0.0f, 0.0f,     1.0f, 0.0f,     1.0f, 0.0f, 0.0f,
-            1.0f, 0.0f, 1.0f,     0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
-        };
-
-        float topVertices[] = {
-            0.0f, 1.0f, 0.0f,     0.0f, 1.0f,     0.0f, 1.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,     1.0f, 1.0f,     0.0f, 1.0f, 0.0f,
-            0.0f, 1.0f, 1.0f,     0.0f, 0.0f,     0.0f, 1.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,     1.0f, 1.0f,     0.0f, 1.0f, 0.0f,
-            1.0f, 1.0f, 1.0f,     1.0f, 0.0f,     0.0f, 1.0f, 0.0f,
-            0.0f, 1.0f, 1.0f,     0.0f, 0.0f,     0.0f, 1.0f, 0.0f,
-        };
-
-        float northVertices[] = {
-            1.0f, 1.0f, 0.0f,     0.0f, 1.0f,     0.0f, 0.0f, -1.0f,
-            0.0f, 1.0f, 0.0f,     1.0f, 1.0f,     0.0f, 0.0f, -1.0f,
-            1.0f, 0.0f, 0.0f,     0.0f, 0.0f,     0.0f, 0.0f, -1.0f,
-            0.0f, 1.0f, 0.0f,     1.0f, 1.0f,     0.0f, 0.0f, -1.0f,
-            0.0f, 0.0f, 0.0f,     1.0f, 0.0f,     0.0f, 0.0f, -1.0f,
-            1.0f, 0.0f, 0.0f,     0.0f, 0.0f,     0.0f, 0.0f, -1.0f,
-        };
-
-        float westVertices[] = {
-            0.0f, 1.0f, 0.0f,     0.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 1.0f,     1.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f,     0.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 1.0f,     1.0f, 1.0f,     -1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f,     1.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f,     0.0f, 0.0f,     -1.0f, 0.0f, 0.0f,
-        };
-
-        float bottomVertices[] = {
-            0.0f, 0.0f, 1.0f,     0.0f, 1.0f,     0.0f, -1.0f, 0.0f,
-            1.0f, 0.0f, 1.0f,     1.0f, 1.0f,     0.0f, -1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f,
-            1.0f, 0.0f, 1.0f,     1.0f, 1.0f,     0.0f, -1.0f, 0.0f,
-            1.0f, 0.0f, 0.0f,     1.0f, 0.0f,     0.0f, -1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f
-        };
-
-        glGenVertexArrays(1, &topVAO);
-        glGenBuffers(1, &topVBO);
-        glGenVertexArrays(1, &bottomVAO);
-        glGenBuffers(1, &bottomVBO);
-        glGenVertexArrays(1, &northVAO);
-        glGenBuffers(1, &northVBO);
-        glGenVertexArrays(1, &southVAO);
-        glGenBuffers(1, &southVBO);
-        glGenVertexArrays(1, &eastVAO);
-        glGenBuffers(1, &eastVBO);
-        glGenVertexArrays(1, &westVAO);
-        glGenBuffers(1, &westVBO);
-
-        glBindVertexArray(topVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, topVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(topVertices), topVertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(bottomVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, bottomVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(bottomVertices), bottomVertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(northVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, northVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(northVertices), northVertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(southVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, southVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(southVertices), southVertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(eastVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, eastVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(eastVertices), eastVertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(westVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, westVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(westVertices), westVertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(0);
+struct vecHash {
+    std::size_t operator()(const glm::ivec3& v) const noexcept {
+        std::size_t h1 = std::hash<int>{}(v.x);
+        std::size_t h2 = std::hash<int>{}(v.y);
+        std::size_t h3 = std::hash<int>{}(v.z);
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
     }
 };
+

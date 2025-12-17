@@ -23,6 +23,7 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow* window);
 unsigned int loadTexture(const char* path);
 void initBlockTypes();
+void setupBlockFaces(unsigned int* VAOs, unsigned int* VBOs);
 
 Camera camera;
 
@@ -43,13 +44,21 @@ glm::vec4 pointLightPositions[] = {
     // glm::vec4(18.0f, 2.0f, -9.0f, 1.0f)
 };
 
+BlockType bedrock;
+BlockType coal_ore;
 BlockType diamond_ore;
+BlockType netherrack;
+BlockType oak_log;
+BlockType oak_planks;
+BlockType iron_ore;
 BlockType dirt;
+BlockType grass_block;
 BlockType none;
+BlockType stone;
 
 std::vector<std::unique_ptr<Block>> blocks;
 
-BlockType* hotbar[9] = { &dirt, &diamond_ore, &none, &none, &none, &none, &none, &none, &none };
+BlockType* hotbar[9] = { &dirt, &diamond_ore, &grass_block, &oak_planks, &stone, &coal_ore, &iron_ore, &oak_log, &netherrack };
 unsigned int activeHotbarSlot = 0;
 
 int main() {
@@ -87,11 +96,25 @@ int main() {
 
     stbi_set_flip_vertically_on_load(true);
 
+    unsigned int VAOs[6];
+    unsigned int VBOs[6];
+    setupBlockFaces(VAOs, VBOs);
+
     initBlockTypes();
 
-    blocks.reserve(40);
-    blocks.push_back(std::make_unique<Block>(glm::vec3(0.0f, 0.0f, 0.0f), dirt));
-    blocks.push_back(std::make_unique<Block>(glm::vec3(1.0f, 0.0f, 0.0f), diamond_ore));
+    blocks.reserve(4180);
+    for (int x = 0; x < 16; x++) {
+        for (int z = 0; z < 16; z++) {
+            blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, 0, z), bedrock));
+            for (int y = 1; y < 28; y++) {
+                blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, y, z), stone));
+            }
+            for (int y = 28; y < 31; y++) {
+                blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, y, z), dirt));
+            }
+            blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, 31, z), grass_block));
+        }
+    }
 
     float crosshairVertices[] = {
         -0.006f, -0.05f,
@@ -138,18 +161,18 @@ int main() {
         lastFrame = currentFrame;
 
         glm::mat4 view = camera.getViewMatrix();
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
 
         blockShader.use();
         blockShader.setVec3("material.specular", glm::vec3(1.0f));
-        blockShader.setFloat("material.shininess", 16.0f);
+        blockShader.setFloat("material.shininess", 8.0f);
 
         blockShader.setBool("DoSunlight", doSunlight);
         if (doSunlight) {
             blockShader.setVec3("Sunlight.direction", glm::mat3(view) * sunlightDirection);
             blockShader.setVec3("Sunlight.ambient", glm::vec3(0.38f));
             blockShader.setVec3("Sunlight.diffuse", glm::vec3(1.0f));
-            blockShader.setVec3("Sunlight.specular", glm::vec3(0.2f));
+            blockShader.setVec3("Sunlight.specular", glm::vec3(0.1f));
         }
 
         for (unsigned int i = 0; i < 0; i++) {
@@ -166,7 +189,7 @@ int main() {
         blockShader.setMat4("projection", glm::value_ptr(projection));
 
         for (const auto &block : blocks) {
-            block->draw(blockShader);
+            block->draw(VAOs, blockShader, camera);
         }
 
         crosshairShader.use();
@@ -183,6 +206,8 @@ int main() {
     blocks.clear();
     glDeleteTextures(6, diamond_ore.textures);
     glDeleteTextures(6, dirt.textures);
+    glDeleteVertexArrays(6, VAOs);
+    glDeleteBuffers(6, VBOs);
     glDeleteVertexArrays(1, &crosshairVAO);
     glDeleteBuffers(1, &crosshairVBO);
     glfwTerminate();
@@ -337,11 +362,105 @@ unsigned int loadTexture(char const * path) {
 }
 
 void initBlockTypes() {
-    const unsigned int diamond_ore_texture_1 = loadTexture("../resources/textures/diamond_ore.png");
-    const unsigned int dirt_texture_1 = loadTexture("../resources/textures/dirt.png");
+    const unsigned int bedrock_texture = loadTexture("../resources/textures/bedrock.png");
+    const unsigned int coal_ore_texture = loadTexture("../resources/textures/coal_ore.png");
+    const unsigned int diamond_ore_texture = loadTexture("../resources/textures/diamond_ore.png");
+    const unsigned int dirt_texture = loadTexture("../resources/textures/dirt.png");
+    const unsigned int grass_carried_texture = loadTexture("../resources/textures/grass_carried.png");
+    const unsigned int grass_side_carried_texture = loadTexture("../resources/textures/grass_side_carried.png");
+    const unsigned int iron_ore_texture = loadTexture("../resources/textures/iron_ore.png");
+    const unsigned int log_oak_texture = loadTexture("../resources/textures/log_oak.png");
+    const unsigned int log_oak_top_texture = loadTexture("../resources/textures/log_oak_top.png");
+    const unsigned int netherrack_texture = loadTexture("../resources/textures/netherrack.png");
+    const unsigned int planks_oak_texture = loadTexture("../resources/textures/planks_oak.png");
+    const unsigned int stone_texture = loadTexture("../resources/textures/stone.png");
     for (unsigned int i = 0; i < 6; i++) {
-        diamond_ore.textures[i] = diamond_ore_texture_1;
-        dirt.textures[i] = dirt_texture_1;
+        bedrock.textures[i] = bedrock_texture;
+        coal_ore.textures[i] = coal_ore_texture;
+        iron_ore.textures[i] = iron_ore_texture;
+        diamond_ore.textures[i] = diamond_ore_texture;
+        dirt.textures[i] = dirt_texture;
+        netherrack.textures[i] = netherrack_texture;
+        oak_planks.textures[i] = planks_oak_texture;
+        stone.textures[i] = stone_texture;
     }
+    grass_block.textures[0] = grass_carried_texture;
+    grass_block.textures[1] = dirt_texture;
+    oak_log.textures[0] = log_oak_top_texture;
+    oak_log.textures[1] = log_oak_top_texture;
+    for (unsigned int i = 2; i < 6; i++) {
+        grass_block.textures[i] = grass_side_carried_texture;
+        oak_log.textures[i] = log_oak_texture;
+    }
+}
+
+void setupBlockFaces(unsigned int* VAOs, unsigned int* VBOs) {
+    const float vertices[6][48] = {
+        { // Top
+            0.0f,1.0f,0.0f, 0.0f,1.0f, 0.0f,1.0f,0.0f,
+            1.0f,1.0f,0.0f, 1.0f,1.0f, 0.0f,1.0f,0.0f,
+            0.0f,1.0f,1.0f, 0.0f,0.0f, 0.0f,1.0f,0.0f,
+            1.0f,1.0f,0.0f, 1.0f,1.0f, 0.0f,1.0f,0.0f,
+            1.0f,1.0f,1.0f, 1.0f,0.0f, 0.0f,1.0f,0.0f,
+            0.0f,1.0f,1.0f, 0.0f,0.0f, 0.0f,1.0f,0.0f
+        },
+        { // Bottom
+            0.0f,0.0f,1.0f, 0.0f,1.0f, 0.0f,-1.0f,0.0f,
+            1.0f,0.0f,1.0f, 1.0f,1.0f, 0.0f,-1.0f,0.0f,
+            0.0f,0.0f,0.0f, 0.0f,0.0f, 0.0f,-1.0f,0.0f,
+            1.0f,0.0f,1.0f, 1.0f,1.0f, 0.0f,-1.0f,0.0f,
+            1.0f,0.0f,0.0f, 1.0f,0.0f, 0.0f,-1.0f,0.0f,
+            0.0f,0.0f,0.0f, 0.0f,0.0f, 0.0f,-1.0f,0.0f
+        },
+        { // North
+            1.0f,1.0f,0.0f, 0.0f,1.0f, 0.0f,0.0f,-1.0f,
+            0.0f,1.0f,0.0f, 1.0f,1.0f, 0.0f,0.0f,-1.0f,
+            1.0f,0.0f,0.0f, 0.0f,0.0f, 0.0f,0.0f,-1.0f,
+            0.0f,1.0f,0.0f, 1.0f,1.0f, 0.0f,0.0f,-1.0f,
+            0.0f,0.0f,0.0f, 1.0f,0.0f, 0.0f,0.0f,-1.0f,
+            1.0f,0.0f,0.0f, 0.0f,0.0f, 0.0f,0.0f,-1.0f
+        },
+        { // South
+            0.0f,1.0f,1.0f, 0.0f,1.0f, 0.0f,0.0f,1.0f,
+            1.0f,1.0f,1.0f, 1.0f,1.0f, 0.0f,0.0f,1.0f,
+            0.0f,0.0f,1.0f, 0.0f,0.0f, 0.0f,0.0f,1.0f,
+            1.0f,1.0f,1.0f, 1.0f,1.0f, 0.0f,0.0f,1.0f,
+            1.0f,0.0f,1.0f, 1.0f,0.0f, 0.0f,0.0f,1.0f,
+            0.0f,0.0f,1.0f, 0.0f,0.0f, 0.0f,0.0f,1.0f
+        },
+        { // East
+            1.0f,1.0f,1.0f, 0.0f,1.0f, 1.0f,0.0f,0.0f,
+            1.0f,1.0f,0.0f, 1.0f,1.0f, 1.0f,0.0f,0.0f,
+            1.0f,0.0f,1.0f, 0.0f,0.0f, 1.0f,0.0f,0.0f,
+            1.0f,1.0f,0.0f, 1.0f,1.0f, 1.0f,0.0f,0.0f,
+            1.0f,0.0f,0.0f, 1.0f,0.0f, 1.0f,0.0f,0.0f,
+            1.0f,0.0f,1.0f, 0.0f,0.0f, 1.0f,0.0f,0.0f
+        },
+        { // West
+            0.0f,1.0f,0.0f, 0.0f,1.0f, -1.0f,0.0f,0.0f,
+            0.0f,1.0f,1.0f, 1.0f,1.0f, -1.0f,0.0f,0.0f,
+            0.0f,0.0f,0.0f, 0.0f,0.0f, -1.0f,0.0f,0.0f,
+            0.0f,1.0f,1.0f, 1.0f,1.0f, -1.0f,0.0f,0.0f,
+            0.0f,0.0f,1.0f, 1.0f,0.0f, -1.0f,0.0f,0.0f,
+            0.0f,0.0f,0.0f, 0.0f,0.0f, -1.0f,0.0f,0.0f
+        }
+    };
+
+    glGenVertexArrays(6, VAOs);
+    glGenBuffers(6, VBOs);
+
+    for (unsigned int i = 0; i < 6; i++) {
+        glBindVertexArray(VAOs[i]);
+        glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[i]), vertices[i], GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+    }
+
+    glBindVertexArray(0);
 }
 
