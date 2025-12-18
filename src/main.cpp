@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "Chunk.h"
 #include "Shader.h"
 #include "Camera.h"
 #include "Block.h"
@@ -12,6 +13,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -39,7 +41,7 @@ float lastFrame = 0.0f;
 
 bool doSunlight = true;
 glm::vec3 sunlightDirection = glm::normalize(glm::vec3(0.5f, -1.0f, -0.3f));
-glm::vec4 pointLightPositions[] = {
+glm::vec4 pointLightPositions[0] = {
     // glm::vec4(0.0f, 2.0f, -9.0f, 1.0f),
     // glm::vec4(18.0f, 2.0f, -9.0f, 1.0f)
 };
@@ -58,8 +60,28 @@ BlockType stone;
 
 std::vector<std::unique_ptr<Block>> blocks;
 
+struct ChunkCoord {
+    int x, y, z;
+};
+
+struct ChunkCoordHash {
+    size_t operator()(const ChunkCoord& c) const {
+        return std::hash<int>()(c.x) ^ std::hash<int>()(c.y) << 1 ^ std::hash<int>()(c.z) << 2;
+    }
+};
+
+std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash> chunks;
+
 BlockType* hotbar[9] = { &dirt, &diamond_ore, &grass_block, &oak_planks, &stone, &coal_ore, &iron_ore, &oak_log, &netherrack };
 unsigned int activeHotbarSlot = 0;
+
+struct ImageData {
+    int width;
+    int height;
+    int channels;
+    unsigned char* pixels;
+};
+ImageData loadImage(const std::string& path);
 
 int main() {
     if (!glfwInit()) {
@@ -96,15 +118,14 @@ int main() {
 
     stbi_set_flip_vertically_on_load(true);
 
-    unsigned int VAOs[6];
-    unsigned int VBOs[6];
-    setupBlockFaces(VAOs, VBOs);
+    unsigned int blockVAOs[6], blockVBOs[6];
+    setupBlockFaces(blockVAOs, blockVBOs);
 
     initBlockTypes();
 
     blocks.reserve(4180);
-    for (int x = 0; x < 16; x++) {
-        for (int z = 0; z < 16; z++) {
+    for (int x = 0; x < 32; x++) {
+        for (int z = 0; z < 32; z++) {
             blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, 0, z), bedrock));
             for (int y = 1; y < 28; y++) {
                 blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, y, z), stone));
@@ -143,8 +164,29 @@ int main() {
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
+    glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
     blockShader.use();
+    blockShader.setMat4("projection", glm::value_ptr(projection));
+
     blockShader.setInt("material.texture_diffuse1", 0);
+    blockShader.setVec3("material.specular", glm::vec3(1.0f));
+    blockShader.setFloat("material.shininess", 8.0f);
+
+    blockShader.setBool("DoSunlight", doSunlight);
+    if (doSunlight) {
+        blockShader.setVec3("Sunlight.ambient", glm::vec3(0.38f));
+        blockShader.setVec3("Sunlight.diffuse", glm::vec3(1.0f));
+        blockShader.setVec3("Sunlight.specular", glm::vec3(0.1f));
+    }
+
+    for (unsigned int i = 0; i < sizeof(pointLightPositions) / sizeof(pointLightPositions[0]); i++) {
+        blockShader.setVec3("PointLights[" + std::to_string(i) + "].ambient", glm::vec3(0.3f));
+        blockShader.setVec3("PointLights[" + std::to_string(i) + "].diffuse", glm::vec3(1.0f));
+        blockShader.setVec3("PointLights[" + std::to_string(i) + "].specular", glm::vec3(0.3f));
+        blockShader.setFloat("PointLights[" + std::to_string(i) + "].constant", 1.0f);
+        blockShader.setFloat("PointLights[" + std::to_string(i) + "].linear", 0.09f);
+        blockShader.setFloat("PointLights[" + std::to_string(i) + "].quadratic", 0.032f);
+    }
 
     crosshairShader.use();
     crosshairShader.setFloat("aspectRatio", (float)SCREEN_WIDTH/SCREEN_HEIGHT);
@@ -161,7 +203,6 @@ int main() {
         lastFrame = currentFrame;
 
         glm::mat4 view = camera.getViewMatrix();
-        glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
 
         blockShader.use();
         blockShader.setVec3("material.specular", glm::vec3(1.0f));
@@ -170,26 +211,17 @@ int main() {
         blockShader.setBool("DoSunlight", doSunlight);
         if (doSunlight) {
             blockShader.setVec3("Sunlight.direction", glm::mat3(view) * sunlightDirection);
-            blockShader.setVec3("Sunlight.ambient", glm::vec3(0.38f));
-            blockShader.setVec3("Sunlight.diffuse", glm::vec3(1.0f));
-            blockShader.setVec3("Sunlight.specular", glm::vec3(0.1f));
         }
 
-        for (unsigned int i = 0; i < 0; i++) {
+        for (unsigned int i = 0; i < sizeof(pointLightPositions) / sizeof(pointLightPositions[0]); i++) {
             blockShader.setVec3("PointLights[" + std::to_string(i) + "].position", view * pointLightPositions[i]);
-            blockShader.setVec3("PointLights[" + std::to_string(i) + "].ambient", glm::vec3(0.3f));
-            blockShader.setVec3("PointLights[" + std::to_string(i) + "].diffuse", glm::vec3(1.0f));
-            blockShader.setVec3("PointLights[" + std::to_string(i) + "].specular", glm::vec3(0.3f));
-            blockShader.setFloat("PointLights[" + std::to_string(i) + "].constant", 1.0f);
-            blockShader.setFloat("PointLights[" + std::to_string(i) + "].linear", 0.09f);
-            blockShader.setFloat("PointLights[" + std::to_string(i) + "].quadratic", 0.032f);
         }
 
         blockShader.setMat4("view", glm::value_ptr(view));
-        blockShader.setMat4("projection", glm::value_ptr(projection));
 
+        glActiveTexture(GL_TEXTURE0);
         for (const auto &block : blocks) {
-            block->draw(VAOs, blockShader, camera);
+            block->draw(blockVAOs, blockShader, camera);
         }
 
         crosshairShader.use();
@@ -204,10 +236,18 @@ int main() {
     glDeleteProgram(blockShader.ID);
     glDeleteProgram(crosshairShader.ID);
     blocks.clear();
+    glDeleteTextures(6, bedrock.textures);
+    glDeleteTextures(6, coal_ore.textures);
     glDeleteTextures(6, diamond_ore.textures);
     glDeleteTextures(6, dirt.textures);
-    glDeleteVertexArrays(6, VAOs);
-    glDeleteBuffers(6, VBOs);
+    glDeleteTextures(6, grass_block.textures);
+    glDeleteTextures(6, iron_ore.textures);
+    glDeleteTextures(6, netherrack.textures);
+    glDeleteTextures(6, oak_log.textures);
+    glDeleteTextures(6, oak_planks.textures);
+    glDeleteTextures(6, stone.textures);
+    glDeleteVertexArrays(6, blockVAOs);
+    glDeleteBuffers(6, blockVBOs);
     glDeleteVertexArrays(1, &crosshairVAO);
     glDeleteBuffers(1, &crosshairVBO);
     glfwTerminate();
@@ -350,7 +390,7 @@ unsigned int loadTexture(char const * path) {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         stbi_image_free(data);
@@ -359,6 +399,12 @@ unsigned int loadTexture(char const * path) {
         stbi_image_free(data);
     }
     return textureID;
+}
+
+ImageData loadImage(const std::string& path) {
+    ImageData img;
+    img.pixels = stbi_load(path.c_str(), &img.width, &img.height, &img.channels, 4);
+    return img;
 }
 
 void initBlockTypes() {

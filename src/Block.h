@@ -14,8 +14,8 @@ struct BlockType {
 class Block {
 public:
     glm::vec3 position;
-    BlockType blockType;
-    Block(const glm::vec3& position, const BlockType& blockType);
+    BlockType* blockType = nullptr;
+    Block(const glm::vec3& position, BlockType& blockType);
     ~Block();
     Block(const Block&&) = delete;
     Block &operator = (const Block&) = delete;
