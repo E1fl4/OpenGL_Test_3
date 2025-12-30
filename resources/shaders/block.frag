@@ -5,6 +5,7 @@ out vec4 FragColor;
 in vec2 TexCoord;
 in vec3 FragPos;
 in vec3 Normal;
+flat in int vTexIndex;
 
 uniform bool DoSunlight;
 
@@ -29,7 +30,7 @@ struct DirLight {
 };
 
 struct Material {
-    sampler2D texture_diffuse1;
+    sampler2DArray texture_diffuse1;
     vec3 specular;
     float shininess;
 };
@@ -62,8 +63,8 @@ vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir) {
     vec3 reflectDir = reflect(-lightDir, normal);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
 
-    vec3 ambient = light.ambient * vec3(texture(material.texture_diffuse1, TexCoord));
-    vec3 diffuse = light.diffuse * diff * vec3(texture(material.texture_diffuse1, TexCoord));
+    vec3 ambient = light.ambient * vec3(texture(material.texture_diffuse1, vec3(TexCoord, vTexIndex)));
+    vec3 diffuse = light.diffuse * diff * vec3(texture(material.texture_diffuse1, vec3(TexCoord, vTexIndex)));
     vec3 specular = light.specular * (spec * material.specular);
 
     float dist = length(light.position - fragPos);
@@ -82,8 +83,8 @@ vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir) {
     vec3 reflectDir = reflect(-lightDir, normal);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
 
-    vec3 ambient = light.ambient * vec3(texture(material.texture_diffuse1, TexCoord));
-    vec3 diffuse = light.diffuse * diff * vec3(texture(material.texture_diffuse1, TexCoord));
+    vec3 ambient = light.ambient * vec3(texture(material.texture_diffuse1, vec3(TexCoord, vTexIndex)));
+    vec3 diffuse = light.diffuse * diff * vec3(texture(material.texture_diffuse1, vec3(TexCoord, vTexIndex)));
     vec3 specular = light.specular * (spec * material.specular);
     return (ambient + diffuse + specular);
 }

@@ -1,20 +1,21 @@
 #include <algorithm>
+#include <cstdlib>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "Blocks.h"
 #include "Chunk.h"
 #include "Shader.h"
 #include "Camera.h"
-#include "Block.h"
+#include "glm/common.hpp"
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
 #include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -23,8 +24,7 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow* window);
-unsigned int loadTexture(const char* path);
-void initBlockTypes();
+unsigned int initTextures();
 void setupBlockFaces(unsigned int* VAOs, unsigned int* VBOs);
 
 Camera camera;
@@ -46,34 +46,11 @@ glm::vec4 pointLightPositions[0] = {
     // glm::vec4(18.0f, 2.0f, -9.0f, 1.0f)
 };
 
-BlockType bedrock;
-BlockType coal_ore;
-BlockType diamond_ore;
-BlockType netherrack;
-BlockType oak_log;
-BlockType oak_planks;
-BlockType iron_ore;
-BlockType dirt;
-BlockType grass_block;
-BlockType none;
-BlockType stone;
 
-std::vector<std::unique_ptr<Block>> blocks;
+std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>, ChunkCoordHash> chunks;
 
-struct ChunkCoord {
-    int x, y, z;
-};
-
-struct ChunkCoordHash {
-    size_t operator()(const ChunkCoord& c) const {
-        return std::hash<int>()(c.x) ^ std::hash<int>()(c.y) << 1 ^ std::hash<int>()(c.z) << 2;
-    }
-};
-
-std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash> chunks;
-
-BlockType* hotbar[9] = { &dirt, &diamond_ore, &grass_block, &oak_planks, &stone, &coal_ore, &iron_ore, &oak_log, &netherrack };
-unsigned int activeHotbarSlot = 0;
+// BlockType* hotbar[9] = { &dirt, &diamond_ore, &grass_block, &oak_planks, &stone, &coal_ore, &iron_ore, &oak_log, &netherrack };
+// unsigned int activeHotbarSlot = 0;
 
 struct ImageData {
     int width;
@@ -116,24 +93,13 @@ int main() {
     Shader blockShader("../resources/shaders/block.vert", "../resources/shaders/block.frag");
     Shader crosshairShader("../resources/shaders/crosshair.vert", "../resources/shaders/crosshair.frag");
 
-    stbi_set_flip_vertically_on_load(true);
+    unsigned int textures = initTextures();
+    Blocks::init();
 
-    unsigned int blockVAOs[6], blockVBOs[6];
-    setupBlockFaces(blockVAOs, blockVBOs);
-
-    initBlockTypes();
-
-    blocks.reserve(4180);
     for (int x = 0; x < 32; x++) {
         for (int z = 0; z < 32; z++) {
-            blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, 0, z), bedrock));
-            for (int y = 1; y < 28; y++) {
-                blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, y, z), stone));
-            }
-            for (int y = 28; y < 31; y++) {
-                blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, y, z), dirt));
-            }
-            blocks.emplace_back(std::make_unique<Block>(glm::vec3(x, 31, z), grass_block));
+            ChunkCoord coord{x, z};
+            chunks.emplace(coord, std::make_unique<Chunk>(coord));
         }
     }
 
@@ -164,7 +130,7 @@ int main() {
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
-    glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 500.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float)SCREEN_WIDTH/SCREEN_HEIGHT, 0.1f, 2000.0f);
     blockShader.use();
     blockShader.setMat4("projection", glm::value_ptr(projection));
 
@@ -196,6 +162,7 @@ int main() {
         // glClearColor(31.0f/255.0f, 30.0f/255.0f, 51.0f/255.0f, 1.0f);
         // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClearColor(0.6f, 0.8f, 1.0f, 1.0f);
+        // glClearColor(0.8f, 0.2f, 0.6f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float currentFrame = glfwGetTime();
@@ -220,8 +187,10 @@ int main() {
         blockShader.setMat4("view", glm::value_ptr(view));
 
         glActiveTexture(GL_TEXTURE0);
-        for (const auto &block : blocks) {
-            block->draw(blockVAOs, blockShader, camera);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, textures);
+
+        for (auto& [coord, chunkPtr] : chunks) {
+            chunkPtr->draw(blockShader);
         }
 
         crosshairShader.use();
@@ -235,19 +204,7 @@ int main() {
 
     glDeleteProgram(blockShader.ID);
     glDeleteProgram(crosshairShader.ID);
-    blocks.clear();
-    glDeleteTextures(6, bedrock.textures);
-    glDeleteTextures(6, coal_ore.textures);
-    glDeleteTextures(6, diamond_ore.textures);
-    glDeleteTextures(6, dirt.textures);
-    glDeleteTextures(6, grass_block.textures);
-    glDeleteTextures(6, iron_ore.textures);
-    glDeleteTextures(6, netherrack.textures);
-    glDeleteTextures(6, oak_log.textures);
-    glDeleteTextures(6, oak_planks.textures);
-    glDeleteTextures(6, stone.textures);
-    glDeleteVertexArrays(6, blockVAOs);
-    glDeleteBuffers(6, blockVBOs);
+    glDeleteTextures(1, &textures);
     glDeleteVertexArrays(1, &crosshairVAO);
     glDeleteBuffers(1, &crosshairVBO);
     glfwTerminate();
@@ -271,24 +228,25 @@ void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         camera.processKeyboard(DOWN, deltaTime);
 
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
-        activeHotbarSlot = 0;
-    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
-        activeHotbarSlot = 1;
-    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
-        activeHotbarSlot = 2;
-    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
-        activeHotbarSlot = 3;
-    if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
-        activeHotbarSlot = 4;
-    if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
-        activeHotbarSlot = 5;
-    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
-        activeHotbarSlot = 6;
-    if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
-        activeHotbarSlot = 7;
-    if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
-        activeHotbarSlot = 8;
+    // if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+    //     activeHotbarSlot = 0;
+    // if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+    //     activeHotbarSlot = 1;
+    // if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+    //     activeHotbarSlot = 2;
+    // if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
+    //     activeHotbarSlot = 3;
+    // if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
+    //     activeHotbarSlot = 4;
+    // if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
+    //     activeHotbarSlot = 5;
+    // if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
+    //     activeHotbarSlot = 6;
+    // if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+    //     activeHotbarSlot = 7;
+    // if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
+    //     activeHotbarSlot = 8;
+
 }
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
@@ -310,58 +268,112 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     camera.processMouseMovement(xOffset, yOffset);
 }
 
-void mineBlock(Block* hitBlock) {
-    blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const auto &blockPtr) {
-        return hitBlock == blockPtr.get();
-    }), blocks.end());
-}
+// void mineBlock(Block* hitBlock) {
+//     blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const auto &blockPtr) {
+//         return hitBlock == blockPtr.get();
+//     }), blocks.end());
+// }
 
-void placeBlock(const glm::vec3 &position) {
-    if (hotbar[activeHotbarSlot] == &none) return;
-    blocks.push_back(std::make_unique<Block>(position, *hotbar[activeHotbarSlot]));
-}
+// void placeBlock(const glm::vec3 &position) {
+//     if (hotbar[activeHotbarSlot] == &none) return;
+//     blocks.push_back(std::make_unique<Block>(position, *hotbar[activeHotbarSlot]));
+// }
 
-void tryPlaceBlock(Block* hitBlock) {
-    float dist;
-    glm::vec3 pos = hitBlock->position;
-    if (camera.isLookingAt(pos + glm::vec3(0.0f, 1.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
-        glm::dot(camera.front, glm::vec3(0.0f, 1.0f, 0.0f)) < 0)
-        placeBlock(hitBlock->position + glm::vec3(0.0f, 1.0f, 0.0f));
-    if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 0.0f, 1.0f), dist) &&
-        glm::dot(camera.front, glm::vec3(0.0f, -1.0f, 0.0f)) < 0)
-        placeBlock(hitBlock->position + glm::vec3(0.0f, -1.0f, 0.0f));
-    if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 1.0f, 0.0f), dist) &&
-        glm::dot(camera.front, glm::vec3(0.0f, 0.0f, -1.0f)) < 0)
-        placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, -1.0f));
-    if (camera.isLookingAt(pos + glm::vec3(0.0f, 0.0f, 1.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
-        glm::dot(camera.front, glm::vec3(0.0f, 0.0f, 1.0f)) < 0)
-        placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, 1.0f));
-    if (camera.isLookingAt(pos + glm::vec3(1.0f, 0.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
-        glm::dot(camera.front, glm::vec3(1.0f, 0.0f, 0.0f)) < 0)
-        placeBlock(hitBlock->position + glm::vec3(1.0f, 0.0f, 0.0f));
-    if (camera.isLookingAt(pos, pos + glm::vec3(0.0f, 1.0f, 1.0f), dist) &&
-        glm::dot(camera.front, glm::vec3(-1.0f, 0.0f, 0.0f)) < 0)
-        placeBlock(hitBlock->position + glm::vec3(-1.0f, 0.0f, 0.0f));
-}
+// void tryPlaceBlock(Block* hitBlock) {
+//     float dist;
+//     glm::vec3 pos = hitBlock->position;
+//     if (camera.isLookingAt(pos + glm::vec3(0.0f, 1.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
+//         glm::dot(camera.front, glm::vec3(0.0f, 1.0f, 0.0f)) < 0)
+//         placeBlock(hitBlock->position + glm::vec3(0.0f, 1.0f, 0.0f));
+//     if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 0.0f, 1.0f), dist) &&
+//         glm::dot(camera.front, glm::vec3(0.0f, -1.0f, 0.0f)) < 0)
+//         placeBlock(hitBlock->position + glm::vec3(0.0f, -1.0f, 0.0f));
+//     if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 1.0f, 0.0f), dist) &&
+//         glm::dot(camera.front, glm::vec3(0.0f, 0.0f, -1.0f)) < 0)
+//         placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, -1.0f));
+//     if (camera.isLookingAt(pos + glm::vec3(0.0f, 0.0f, 1.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
+//         glm::dot(camera.front, glm::vec3(0.0f, 0.0f, 1.0f)) < 0)
+//         placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, 1.0f));
+//     if (camera.isLookingAt(pos + glm::vec3(1.0f, 0.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
+//         glm::dot(camera.front, glm::vec3(1.0f, 0.0f, 0.0f)) < 0)
+//         placeBlock(hitBlock->position + glm::vec3(1.0f, 0.0f, 0.0f));
+//     if (camera.isLookingAt(pos, pos + glm::vec3(0.0f, 1.0f, 1.0f), dist) &&
+//         glm::dot(camera.front, glm::vec3(-1.0f, 0.0f, 0.0f)) < 0)
+//         placeBlock(hitBlock->position + glm::vec3(-1.0f, 0.0f, 0.0f));
+// }
 
 void tryFindBlock(int button) {
-    float closest = 6.0f;
-    Block* hitBlock = nullptr;
-    for (const auto &blockPtr : blocks) {
-        Block &block = *blockPtr;
-        float dist;
-        if (camera.isLookingAt(block.position, block.position + glm::vec3(1.0f, 1.0f, 1.0f), dist)) {
-            if (dist < closest) {
-                closest = dist;
-                hitBlock = &block;
-            }
+    glm::ivec3 block = glm::floor(camera.position);
+    glm::ivec3 step = glm::sign(camera.front);
+    glm::vec3 tDelta(
+        std::abs(1.0f / camera.front.x),
+        std::abs(1.0f / camera.front.y),
+        std::abs(1.0f / camera.front.z)
+    );
+    glm::vec3 tMax(
+        (step.x>0 ? (block.x+1-camera.position.x) : (camera.position.x-block.x)) * tDelta.x,
+        (step.y>0 ? (block.y+1-camera.position.y) : (camera.position.y-block.y)) * tDelta.y,
+        (step.z>0 ? (block.z+1-camera.position.z) : (camera.position.z-block.z)) * tDelta.z
+    );
+    while (std::min({tMax.x, tMax.y, tMax.x}) < 6.0f) {
+        auto it = chunks.find({block.x/16, block.z/16});
+        if (it == chunks.end()) continue;
+        Chunk& chunk = *it->second;
+        int localX = (block.x % 16 + 16) % 16;
+        int localZ = (block.z % 16 + 16) % 16;
+        if (!chunk.blockIsAir(glm::ivec3(localX, block.y, localZ))) {
+            chunk.setBlock(chunk.indexFromPos({localX, block.y, localZ}), Blocks::AIR);
+            chunk.buildMesh();
+            break;
+        }
+        if (std::min({tMax.x, tMax.y, tMax.z}) == tMax.x) {
+            block.x += step.x;
+            tMax.x += tDelta.x;
+        } else if (std::min({tMax.x, tMax.y, tMax.z}) == tMax.y) {
+            block.y += step.y;
+            tMax.y += tDelta.y;
+        } else if (std::min({tMax.x, tMax.y, tMax.z}) == tMax.z) {
+            block.z += step.z;
+            tMax.z += tDelta.z;
         }
     }
-    if (hitBlock) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT) mineBlock(hitBlock);
-        if (button == GLFW_MOUSE_BUTTON_RIGHT) tryPlaceBlock(hitBlock);
-    }
 }
+
+// void tryFindBlock(int button) {
+//     glm::ivec3 currentBlock = glm::floor(camera.position);
+//     glm::ivec3 step = glm::sign(camera.front);
+//     glm::vec3 totalSteps(
+//         step.x==1 ? 1-(camera.position.x-currentBlock.x) : camera.position.x-currentBlock.x,
+//         step.y==1 ? 1-(camera.position.y-currentBlock.y) : camera.position.y-currentBlock.y,
+//         step.z==1 ? 1-(camera.position.z-currentBlock.z) : camera.position.z-currentBlock.z
+//     );
+//     for (int i = 0; i < 5; i++) {
+//         std::cout << currentBlock.x << ", " << currentBlock.y << ", " << currentBlock.z << ", \n";
+//         glm::vec3 lengths(
+//             glm::vec3(totalSteps.x, totalSteps.x*(camera.front.y/camera.front.x), totalSteps.x*(camera.front.z/camera.front.x)).length(),
+//             glm::vec3(totalSteps.y*(camera.front.x/camera.front.y), totalSteps.y, totalSteps.y*(camera.front.z/camera.front.y)).length(),
+//             glm::vec3(totalSteps.z*(camera.front.x/camera.front.z), totalSteps.z*(camera.front.y/camera.front.z), totalSteps.z).length()
+//         );
+//         if (std::min({lengths.x, lengths.y, lengths.z}) == lengths.x) {
+//             currentBlock.x += step.x;
+//             totalSteps.x += step.x;
+//         } else if (std::min({lengths.x, lengths.y, lengths.z}) == lengths.y) {
+//             currentBlock.y += step.y;
+//             totalSteps.y += step.y;
+//         } else if (std::min({lengths.x, lengths.y, lengths.z}) == lengths.z) {
+//             currentBlock.z += step.z;
+//             totalSteps.z += step.z;
+//         }
+//         auto it = chunks.find({currentBlock.x/16, currentBlock.z/16});
+//         if (it == chunks.end()) continue;
+//         Chunk& chunk = *it->second;
+//         if (!chunk.blockIsAir(glm::ivec3(currentBlock.x % 16, currentBlock.y, currentBlock.z % 16))) {
+//             chunk.setBlock(chunk.indexFromPos({currentBlock.x % 16, currentBlock.y, currentBlock.z % 16}), Blocks::AIR);
+//             chunk.buildMesh();
+//             break;
+//         }
+//     }
+// }
 
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
     if (action == GLFW_PRESS) {
@@ -407,37 +419,58 @@ ImageData loadImage(const std::string& path) {
     return img;
 }
 
-void initBlockTypes() {
-    const unsigned int bedrock_texture = loadTexture("../resources/textures/bedrock.png");
-    const unsigned int coal_ore_texture = loadTexture("../resources/textures/coal_ore.png");
-    const unsigned int diamond_ore_texture = loadTexture("../resources/textures/diamond_ore.png");
-    const unsigned int dirt_texture = loadTexture("../resources/textures/dirt.png");
-    const unsigned int grass_carried_texture = loadTexture("../resources/textures/grass_carried.png");
-    const unsigned int grass_side_carried_texture = loadTexture("../resources/textures/grass_side_carried.png");
-    const unsigned int iron_ore_texture = loadTexture("../resources/textures/iron_ore.png");
-    const unsigned int log_oak_texture = loadTexture("../resources/textures/log_oak.png");
-    const unsigned int log_oak_top_texture = loadTexture("../resources/textures/log_oak_top.png");
-    const unsigned int netherrack_texture = loadTexture("../resources/textures/netherrack.png");
-    const unsigned int planks_oak_texture = loadTexture("../resources/textures/planks_oak.png");
-    const unsigned int stone_texture = loadTexture("../resources/textures/stone.png");
-    for (unsigned int i = 0; i < 6; i++) {
-        bedrock.textures[i] = bedrock_texture;
-        coal_ore.textures[i] = coal_ore_texture;
-        iron_ore.textures[i] = iron_ore_texture;
-        diamond_ore.textures[i] = diamond_ore_texture;
-        dirt.textures[i] = dirt_texture;
-        netherrack.textures[i] = netherrack_texture;
-        oak_planks.textures[i] = planks_oak_texture;
-        stone.textures[i] = stone_texture;
+unsigned int initTextures() {
+    stbi_set_flip_vertically_on_load(true);
+    std::vector<std::string> texturePaths = {
+        "../resources/textures/bedrock.png",
+        "../resources/textures/coal_ore.png",
+        "../resources/textures/diamond_ore.png",
+        "../resources/textures/dirt.png",
+        "../resources/textures/grass_carried.png",
+        "../resources/textures/grass_side_carried.png",
+        "../resources/textures/iron_ore.png",
+        "../resources/textures/log_oak.png",
+        "../resources/textures/log_oak_top.png",
+        "../resources/textures/netherrack.png",
+        "../resources/textures/planks_oak.png",
+        "../resources/textures/stone.png"
+    };
+    unsigned int textures;
+    glGenTextures(1, &textures);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, textures);
+    glTexImage3D(
+        GL_TEXTURE_2D_ARRAY,
+        0,
+        GL_RGBA8,
+        16,
+        16,
+        texturePaths.size(),
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+    std::vector<ImageData> images;
+    for (const std::string& path : texturePaths) {
+        images.push_back(loadImage(path));
     }
-    grass_block.textures[0] = grass_carried_texture;
-    grass_block.textures[1] = dirt_texture;
-    oak_log.textures[0] = log_oak_top_texture;
-    oak_log.textures[1] = log_oak_top_texture;
-    for (unsigned int i = 2; i < 6; i++) {
-        grass_block.textures[i] = grass_side_carried_texture;
-        oak_log.textures[i] = log_oak_texture;
+    for (unsigned int i = 0; i < images.size(); i++) {
+        glTexSubImage3D(
+            GL_TEXTURE_2D_ARRAY,
+            0, 0, 0, i,
+            16, 16, 1,
+            GL_RGBA,
+            GL_UNSIGNED_BYTE,
+            images[i].pixels
+        );
+        stbi_image_free(images[i].pixels);
     }
+    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    return textures;
 }
 
 void setupBlockFaces(unsigned int* VAOs, unsigned int* VBOs) {

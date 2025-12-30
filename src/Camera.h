@@ -17,13 +17,13 @@ enum movementDirection {
 
 class Camera {
 public:
-    glm::vec3 position = glm::vec3(0.0f, 36.0f, 0.0f);
+    glm::vec3 position = glm::vec3(256.0f, 36.0f, 256.0f);
     glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
     glm::vec3 front;
     glm::vec3 frontHorizontal;
     glm::vec3 up;
     glm::vec3 right;
-    float yaw = 0.0f;
+    float yaw = -90.0f;
     float pitch = 0.0f;
     float speed = 4.0f;
     float sensitivity = 0.1f;
@@ -36,7 +36,7 @@ public:
         return glm::lookAt(position, position + front, up);
     }
 
-    // if front x, y or x is 0, we are cooked. might fix later.
+    // if front x, y or z is 0, we are cooked. might fix later.
     bool isLookingAt(const glm::vec3 &boxMin, const glm::vec3 &boxMax, float &dist) {
         // P(t) = origin + dir * t
         // t = (P(t) - origin) / dir

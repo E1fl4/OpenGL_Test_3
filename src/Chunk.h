@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <glm/glm.hpp>
 #include "Shader.h"
 #include "glm/fwd.hpp"
 #include <cstddef>
@@ -12,45 +14,41 @@ struct Vertex {
     glm::uint8_t texIndex;
 };
 
+struct ChunkCoord {
+    int x;
+    int z;
+    bool operator==(const ChunkCoord& other) const {
+        return x == other.x && z == other.z;
+    }
+};
+
+struct ChunkCoordHash {
+    size_t operator()(const ChunkCoord& c) const {
+        return std::hash<int>()(c.x) ^ std::hash<int>()(c.z) << 1;
+    }
+};
+
 class Chunk {
 public:
-    Chunk() {
-        genChunk();
-    }
-    ~Chunk() {
-        glDeleteVertexArrays(1, &VAO);
-        glDeleteBuffers(1, &VBO);
-        glDeleteBuffers(1, &EBO);
-    }
-    void draw() {
-        
-    }
-    void initMesh() {
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
-        glBindVertexArray(VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoords));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-        glEnableVertexAttribArray(2);
-        glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, sizeof(Vertex), (void*)offsetof(Vertex, texIndex));
-        glEnableVertexAttribArray(3);
-        glBindVertexArray(0);
+    ChunkCoord pos;
+    Chunk(ChunkCoord pos, const bool& generate = true);
+    ~Chunk();
+    void draw(Shader& shader);
+    void buildMesh();
+    int indexFromPos(const glm::ivec3& pos);
+    bool blockIsAir(const glm::ivec3& pos);
+    void setBlock(const int& block, const uint16_t& blockType);
 
-
-    }
+    Chunk(const Chunk&) = delete;
+    Chunk& operator=(const Chunk&) = delete;
+    Chunk(Chunk&&) noexcept;
+    Chunk& operator=(Chunk&&) noexcept;
 private:
+    std::vector<uint16_t> blocks;
     std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
+    std::vector<uint32_t> indices;
+    unsigned int indexCount;
     unsigned int VAO, VBO, EBO;
-    void genChunk() {
-
-    }
+    void initMesh();
+    void genChunk();
 };
