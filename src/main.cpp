@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -49,8 +50,18 @@ glm::vec4 pointLightPositions[0] = {
 
 std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>, ChunkCoordHash> chunks;
 
-// BlockType* hotbar[9] = { &dirt, &diamond_ore, &grass_block, &oak_planks, &stone, &coal_ore, &iron_ore, &oak_log, &netherrack };
-// unsigned int activeHotbarSlot = 0;
+uint16_t hotbar[9] = {
+    Blocks::DIRT,
+    Blocks::STONE,
+    Blocks::VOID,
+    Blocks::VOID,
+    Blocks::VOID,
+    Blocks::VOID,
+    Blocks::VOID,
+    Blocks::VOID,
+    Blocks::VOID
+};
+unsigned int activeHotbarSlot = 0;
 
 struct ImageData {
     int width;
@@ -228,24 +239,24 @@ void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         camera.processKeyboard(DOWN, deltaTime);
 
-    // if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
-    //     activeHotbarSlot = 0;
-    // if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
-    //     activeHotbarSlot = 1;
-    // if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
-    //     activeHotbarSlot = 2;
-    // if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
-    //     activeHotbarSlot = 3;
-    // if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
-    //     activeHotbarSlot = 4;
-    // if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
-    //     activeHotbarSlot = 5;
-    // if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
-    //     activeHotbarSlot = 6;
-    // if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
-    //     activeHotbarSlot = 7;
-    // if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
-    //     activeHotbarSlot = 8;
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+        activeHotbarSlot = 0;
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+        activeHotbarSlot = 1;
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+        activeHotbarSlot = 2;
+    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
+        activeHotbarSlot = 3;
+    if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
+        activeHotbarSlot = 4;
+    if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
+        activeHotbarSlot = 5;
+    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
+        activeHotbarSlot = 6;
+    if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+        activeHotbarSlot = 7;
+    if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
+        activeHotbarSlot = 8;
 
 }
 
@@ -268,41 +279,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     camera.processMouseMovement(xOffset, yOffset);
 }
 
-// void mineBlock(Block* hitBlock) {
-//     blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const auto &blockPtr) {
-//         return hitBlock == blockPtr.get();
-//     }), blocks.end());
-// }
-
-// void placeBlock(const glm::vec3 &position) {
-//     if (hotbar[activeHotbarSlot] == &none) return;
-//     blocks.push_back(std::make_unique<Block>(position, *hotbar[activeHotbarSlot]));
-// }
-
-// void tryPlaceBlock(Block* hitBlock) {
-//     float dist;
-//     glm::vec3 pos = hitBlock->position;
-//     if (camera.isLookingAt(pos + glm::vec3(0.0f, 1.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
-//         glm::dot(camera.front, glm::vec3(0.0f, 1.0f, 0.0f)) < 0)
-//         placeBlock(hitBlock->position + glm::vec3(0.0f, 1.0f, 0.0f));
-//     if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 0.0f, 1.0f), dist) &&
-//         glm::dot(camera.front, glm::vec3(0.0f, -1.0f, 0.0f)) < 0)
-//         placeBlock(hitBlock->position + glm::vec3(0.0f, -1.0f, 0.0f));
-//     if (camera.isLookingAt(pos, pos + glm::vec3(1.0f, 1.0f, 0.0f), dist) &&
-//         glm::dot(camera.front, glm::vec3(0.0f, 0.0f, -1.0f)) < 0)
-//         placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, -1.0f));
-//     if (camera.isLookingAt(pos + glm::vec3(0.0f, 0.0f, 1.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
-//         glm::dot(camera.front, glm::vec3(0.0f, 0.0f, 1.0f)) < 0)
-//         placeBlock(hitBlock->position + glm::vec3(0.0f, 0.0f, 1.0f));
-//     if (camera.isLookingAt(pos + glm::vec3(1.0f, 0.0f, 0.0f), pos + glm::vec3(1.0f, 1.0f, 1.0f), dist) &&
-//         glm::dot(camera.front, glm::vec3(1.0f, 0.0f, 0.0f)) < 0)
-//         placeBlock(hitBlock->position + glm::vec3(1.0f, 0.0f, 0.0f));
-//     if (camera.isLookingAt(pos, pos + glm::vec3(0.0f, 1.0f, 1.0f), dist) &&
-//         glm::dot(camera.front, glm::vec3(-1.0f, 0.0f, 0.0f)) < 0)
-//         placeBlock(hitBlock->position + glm::vec3(-1.0f, 0.0f, 0.0f));
-// }
-
-void tryFindBlock(int button) {
+void tryFindBlock(const int& button) {
     glm::ivec3 block = glm::floor(camera.position);
     glm::ivec3 step = glm::sign(camera.front);
     glm::vec3 tDelta(
@@ -316,26 +293,47 @@ void tryFindBlock(int button) {
         (step.z>0 ? (block.z+1-camera.position.z) : (camera.position.z-block.z)) * tDelta.z
     );
     while (std::min({tMax.x, tMax.y, tMax.x}) < 6.0f) {
-        auto it = chunks.find({block.x/16, block.z/16});
-        if (it == chunks.end()) continue;
-        Chunk& chunk = *it->second;
-        int localX = (block.x % 16 + 16) % 16;
-        int localZ = (block.z % 16 + 16) % 16;
-        if (!chunk.blockIsAir(glm::ivec3(localX, block.y, localZ))) {
-            chunk.setBlock(chunk.indexFromPos({localX, block.y, localZ}), Blocks::AIR);
-            chunk.buildMesh();
-            break;
+        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+            auto it = chunks.find({block.x/16, block.z/16});
+            if (it == chunks.end()) continue;
+            Chunk& chunk = *it->second;
+            int localX = (block.x % 16 + 16) % 16;
+            int localZ = (block.z % 16 + 16) % 16;
+            if (!chunk.blockIsAir(glm::ivec3(localX, block.y, localZ))) {
+                chunk.setBlock(chunk.indexFromPos({localX, block.y, localZ}), Blocks::AIR);
+                chunk.buildMesh();
+                break;
+            }
         }
+        glm::ivec3 thisStep;
         if (std::min({tMax.x, tMax.y, tMax.z}) == tMax.x) {
-            block.x += step.x;
+            thisStep = glm::ivec3(step.x, 0, 0);
             tMax.x += tDelta.x;
         } else if (std::min({tMax.x, tMax.y, tMax.z}) == tMax.y) {
-            block.y += step.y;
+            thisStep = glm::ivec3(0, step.y, 0);
             tMax.y += tDelta.y;
         } else if (std::min({tMax.x, tMax.y, tMax.z}) == tMax.z) {
-            block.z += step.z;
+            thisStep = glm::ivec3(0, 0, step.z);
             tMax.z += tDelta.z;
         }
+        if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+            auto it = chunks.find({(block.x+thisStep.x)/16, (block.z+thisStep.z)/16});
+            if (it == chunks.end()) continue;
+            Chunk& chunk = *it->second;
+            int localX = ((block.x + thisStep.x) % 16 + 16) % 16;
+            int localZ = ((block.z + thisStep.z) % 16 + 16) % 16;
+            if (!chunk.blockIsAir(glm::ivec3(localX, block.y + thisStep.y, localZ))) {
+                auto it2 = chunks.find({block.x/16, block.z/16});
+                if (it2 == chunks.end()) continue;
+                Chunk& chunk2 = *it2->second;
+                localX = (block.x % 16 + 16) % 16;
+                localZ = (block.z % 16 + 16) % 16;
+                chunk2.setBlock(chunk2.indexFromPos({localX, block.y, localZ}), Blocks::STONE);
+                chunk2.buildMesh();
+                break;
+            }
+        }
+        block += thisStep;
     }
 }
 
